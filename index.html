@@ -492,11 +492,6 @@ window.checkPin = function() {
 };
 document.getElementById('pin-input').addEventListener('keydown', e => { if (e.key === 'Enter') window.checkPin(); });
 
-// PIN voruebergehend deaktiviert
-showScreen('menu-screen');
-document.getElementById('aktionen-liste').innerHTML = '<div class="empty"><div style="font-size:30px;margin-bottom:8px;">⏳</div>Wird geladen...</div>';
-listenAktionen(renderMenu);
-
 // --- SCREENS ---
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => { s.classList.remove('active'); s.style.display = 'none'; });
@@ -1145,6 +1140,11 @@ window.confirmAction = async function() {
 };
 
 document.getElementById('scan-input').addEventListener('keydown', e => { if (e.key === 'Enter') window.lookupCode(); });
+
+// PIN voruebergehend deaktiviert - direkt zum Hauptmenue
+showScreen('menu-screen');
+document.getElementById('aktionen-liste').innerHTML = '<div class="empty"><div style="font-size:30px;margin-bottom:8px;">⏳</div>Wird geladen...</div>';
+listenAktionen(renderMenu);
 document.querySelectorAll('.overlay').forEach(o => o.addEventListener('click', e => { if (e.target === o) { o.classList.remove('show'); } }));
 </script>
 </body>
