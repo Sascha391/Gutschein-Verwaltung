@@ -308,7 +308,7 @@ const BG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABuwAAASdCAIAAAAkNe13AA
 const EMOJIS = ['🚗','📸','✂️','💪','🍕','☕','🎓','🏥','🐾','🌿','🎯','🎁','👓','🧴','🏋️','🎪','🛒','🏠'];
 const VORLAGEN = [{id:'fotoriede',name:'Foto Riede – Passbilder',desc:'Grünes Design mit Logo'},{id:'klassisch',name:'Klassisch',desc:'Weißer Gutschein'}];
 
-let codes=[],aktionen=[],curAktion=null,curSchool='',detF='all',listF='all',scanId=null,pendingFn=null,editAktionId=null,selEmoji='🎁',selVorlage='fotoriede',aktUnsub=null,codesUnsub=null;
+let codes=[],aktionen=[],curAktion=null,curSchool='',detF='all',listF='all',scanId=null,pendingFn=null,editAktionId=null,selEmoji='🎁',selVorlage='fotoriede',aktUnsub=null,codesUnsub=null,selectMode=false,selectedIds=new Set();
 
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200)}
 function showOv(id){document.querySelectorAll('.ov').forEach(o=>o.classList.remove('show'));if(id)document.getElementById(id).classList.add('show')}
@@ -462,6 +462,7 @@ function openGrp(school){
 }
 function closeDet(){
   curSchool='';
+  if(selectMode)toggleSelectMode(false);
   document.getElementById('back-btn').style.display='none';
   document.getElementById('hdr-title').textContent=curAktion?curAktion.name:'Gutscheine';
   showTab('ov');
@@ -497,7 +498,7 @@ function renderDet(){
   const list=codes.filter(c=>c.school===curSchool&&(detF==='all'||(detF==='open'&&!c.redeemed)||(detF==='done'&&c.redeemed)));
   const el=document.getElementById('det-list');
   if(!list.length){el.innerHTML='<div class="empty"><div class="ei">🎟</div>Keine Codes</div>';return}
-  el.innerHTML='<div class="clist">'+list.map(c=>`<div class="ccard${c.redeemed?' done':''}"><div style="flex:1;min-width:0"><div class="ctxt">${c.code}</div><div class="cmeta">${c.wert?c.wert+' · ':''}${c.redeemed?'Eingelöst · '+c.date:'Offen'}</div></div><span class="badge ${c.redeemed?'bd':'bo'}">${c.redeemed?'✓':'Offen'}</span><div class="br"><button class="bsm ${c.redeemed?'b-undo':'b-chk'}" data-act="tog" data-id="${c.id}" data-r="${c.redeemed}">${c.redeemed?'↩':'✓'}</button><button class="bsm b-edt" data-act="edit-c" data-id="${c.id}">✏️</button><button class="bsm b-prt" data-act="prt1" data-id="${c.id}">🖨</button><button class="bsm b-del" data-act="del-c" data-id="${c.id}" data-code="${c.code}">🗑</button></div></div>`).join('')+'</div>';
+  el.innerHTML='<div class="clist">'+list.map(c=>`<div class="ccard${c.redeemed?' done':''}" style="${selectMode&&selectedIds.has(c.id)?'border-color:var(--acc);background:rgba(108,99,255,.12)':''}"><div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">${selectMode?`<input type="checkbox" ${selectedIds.has(c.id)?'checked':''} onclick="window._toggleSel('${c.id}')" style="width:20px;height:20px;cursor:pointer;accent-color:var(--acc)">`:''}<div style="min-width:0"><div class="ctxt">${c.code}</div><div class="cmeta">${c.wert?(c.wert.includes('€')?c.wert:c.wert+' €')+' · ':''}${c.redeemed?'Eingelöst · '+c.date:'Offen'}</div></div></div>${selectMode?'':`<span class="badge ${c.redeemed?'bd':'bo'}">${c.redeemed?'✓':'Offen'}</span><div class="br"><button class="bsm ${c.redeemed?'b-undo':'b-chk'}" data-act="tog" data-id="${c.id}" data-r="${c.redeemed}">${c.redeemed?'↩':'✓'}</button><button class="bsm b-edt" data-act="edit-c" data-id="${c.id}">✏️</button><button class="bsm b-prt" data-act="prt1" data-id="${c.id}">🖨</button><button class="bsm b-del" data-act="del-c" data-id="${c.id}" data-code="${c.code}">🗑</button></div>`}</div>`).join('')+'</div>';
 }
 function renderLi(){
   const q=(document.getElementById('li-search').value||'').toLowerCase();
@@ -584,12 +585,51 @@ function dlJPEGs(school){
 document.getElementById('det-print').onclick=()=>printVouchers(codes.filter(c=>c.school===curSchool&&!c.redeemed));
 document.getElementById('det-dl').onclick=()=>{if(curSchool)showOv('ov-dl')};
 document.getElementById('det-del').onclick=()=>{
-  const n=codes.filter(c=>c.school===curSchool).length;
-  cfm('Gruppe löschen?',`<p>Alle ${n} Codes von "<strong>${curSchool}</strong>" werden gelöscht.</p>`,async()=>{
-    const batch=writeBatch(db);codes.filter(c=>c.school===curSchool).forEach(c=>batch.delete(doc(db,'aktionen_'+curAktion.id,c.id)));
-    await batch.commit();toast('Gelöscht');closeDet();
-  });
+  if(selectMode){
+    // In select mode: delete selected
+    if(selectedIds.size===0){toast('Keine Codes ausgewählt');return;}
+    cfm('Ausgewählte löschen?',`<p><strong>${selectedIds.size}</strong> Code(s) werden gelöscht.</p>`,async()=>{
+      const batch=writeBatch(db);
+      selectedIds.forEach(id=>batch.delete(doc(db,'aktionen_'+curAktion.id,id)));
+      await batch.commit();
+      toast(selectedIds.size+' Code(s) gelöscht');
+      toggleSelectMode(false);
+    });
+  } else {
+    // Toggle select mode
+    toggleSelectMode(true);
+  }
 };
+
+function toggleSelectMode(on){
+  selectMode=on;
+  selectedIds=new Set();
+  const btn=document.getElementById('det-del');
+  if(on){
+    btn.textContent='🗑 Ausgewählte löschen';
+    btn.style.background='var(--red)';
+    btn.style.color='#fff';
+    // Add cancel button
+    let cancel=document.getElementById('sel-cancel');
+    if(!cancel){
+      cancel=document.createElement('button');
+      cancel.id='sel-cancel';
+      cancel.className='btn btn-o';
+      cancel.style.cssText='flex:1;min-width:100px;font-size:13px;padding:11px 10px;margin-top:8px';
+      cancel.textContent='Abbrechen';
+      cancel.onclick=()=>toggleSelectMode(false);
+      document.querySelector('.dacts').appendChild(cancel);
+    }
+    cancel.style.display='';
+  } else {
+    btn.textContent='🗑 Löschen';
+    btn.style.background='';
+    btn.style.color='';
+    const cancel=document.getElementById('sel-cancel');
+    if(cancel)cancel.style.display='none';
+  }
+  renderDet();
+}
 document.getElementById('dl-pdf').onclick=()=>{showOv(null);printVouchers(codes.filter(c=>c.school===curSchool&&!c.redeemed));toast('Als PDF speichern wählen')};
 document.getElementById('dl-jpg').onclick=()=>{showOv(null);dlJPEGs(curSchool)};
 document.getElementById('dl-cancel').onclick=()=>showOv(null);
@@ -613,6 +653,11 @@ function openAktion(id){
 }
 
 window._openGrp = function(school){ openGrp(school); };
+window._toggleSel = function(id){
+  if(selectedIds.has(id)) selectedIds.delete(id);
+  else selectedIds.add(id);
+  renderDet();
+};
 
 window._editGrp = async function(school){
   const neu=prompt('Gruppenname ändern:',school);
