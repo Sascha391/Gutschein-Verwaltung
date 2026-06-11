@@ -615,43 +615,8 @@ function printVouchers(list){
 function dlJPEGs(school){
   const list=codes.filter(c=>c.school===school&&!c.redeemed);
   if(!list.length){toast('Keine offenen Codes');return}
-  const abl=new Date();abl.setFullYear(abl.getFullYear()+1);
-  const ablStr=abl.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
-  toast('JPEGs werden erstellt...');
-  const zip=new JSZip();
-  const folder=zip.folder(school.replace(/\s+/g,'-'));
-  let done=0;
-  function next(i){
-    if(i>=list.length){
-      zip.generateAsync({type:'blob'}).then(blob=>{
-        const a=document.createElement('a');
-        a.href=URL.createObjectURL(blob);
-        a.download=school.replace(/\s+/g,'-')+'_Gutscheine.zip';
-        a.click();
-        toast(list.length+' JPEGs als ZIP heruntergeladen ✓');
-      });
-      return;
-    }
-    const c=list[i];
-    const canvas=document.createElement('canvas');
-    canvas.width=1772;canvas.height=1181;
-    const ctx=canvas.getContext('2d');
-    const img=new Image();
-    img.onload=()=>{
-      ctx.drawImage(img,0,0,1772,1181);
-      ctx.font='500 46px Arial';ctx.fillStyle='#141414';ctx.textBaseline='middle';
-      ctx.fillText(c.school||'',Math.round(.585*1772),Math.round(.400*1181)+12);
-      ctx.fillText(c.code||'',Math.round(.585*1772),Math.round(.518*1181)+6);
-      ctx.fillText(c.wert||'–',Math.round(.585*1772),Math.round(.637*1181)-6);
-      ctx.fillText(ablStr,Math.round(.585*1772),Math.round(.730*1181)+12);
-      canvas.toBlob(blob=>{
-        folder.file('Gutschein_'+c.code+'.jpg', blob);
-        next(i+1);
-      },'image/jpeg',0.95);
-    };
-    img.src=BG;
-  }
-  next(0);
+  // Reuse dlJPEGsList which handles single vs multiple
+  dlJPEGsList(list);
 }
 
 
@@ -825,39 +790,48 @@ function dlJPEGsList(list){
   const abl=new Date();abl.setFullYear(abl.getFullYear()+1);
   const ablStr=abl.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
   toast('JPEGs werden erstellt...');
-  const zip=new JSZip();
-  const folder=zip.folder('Gutscheine');
-  function next(i){
-    if(i>=list.length){
+
+  function renderCanvas(c){
+    return new Promise(resolve=>{
+      const canvas=document.createElement('canvas');
+      canvas.width=1772;canvas.height=1181;
+      const ctx=canvas.getContext('2d');
+      const img=new Image();
+      img.onload=()=>{
+        ctx.drawImage(img,0,0,1772,1181);
+        ctx.font='500 46px Arial';ctx.fillStyle='#141414';ctx.textBaseline='middle';
+        ctx.fillText(c.school||'',Math.round(.585*1772),Math.round(.400*1181)+12);
+        ctx.fillText(c.code||'',Math.round(.585*1772),Math.round(.518*1181)+6);
+        ctx.fillText(c.wert||'–',Math.round(.585*1772),Math.round(.637*1181)-6);
+        ctx.fillText(ablStr,Math.round(.585*1772),Math.round(.730*1181)+12);
+        canvas.toBlob(blob=>resolve({blob,code:c.code}),'image/jpeg',0.95);
+      };
+      img.src=BG;
+    });
+  }
+
+  Promise.all(list.map(renderCanvas)).then(results=>{
+    if(results.length===1){
+      // Einzelner Gutschein → direkt als JPEG
+      const a=document.createElement('a');
+      a.download='Gutschein_'+results[0].code+'.jpg';
+      a.href=URL.createObjectURL(results[0].blob);
+      a.click();
+      toast('JPEG heruntergeladen ✓');
+    } else {
+      // Mehrere → ZIP
+      const zip=new JSZip();
+      const folder=zip.folder('Gutscheine');
+      results.forEach(r=>folder.file('Gutschein_'+r.code+'.jpg',r.blob));
       zip.generateAsync({type:'blob'}).then(blob=>{
         const a=document.createElement('a');
         a.href=URL.createObjectURL(blob);
         a.download='Gutscheine_Auswahl.zip';
         a.click();
-        toast(list.length+' JPEGs heruntergeladen ✓');
+        toast(results.length+' JPEGs als ZIP heruntergeladen ✓');
       });
-      return;
     }
-    const c=list[i];
-    const canvas=document.createElement('canvas');
-    canvas.width=1772;canvas.height=1181;
-    const ctx=canvas.getContext('2d');
-    const img=new Image();
-    img.onload=()=>{
-      ctx.drawImage(img,0,0,1772,1181);
-      ctx.font='500 46px Arial';ctx.fillStyle='#141414';ctx.textBaseline='middle';
-      ctx.fillText(c.school||'',Math.round(.585*1772),Math.round(.400*1181)+12);
-      ctx.fillText(c.code||'',Math.round(.585*1772),Math.round(.518*1181)+6);
-      ctx.fillText(c.wert||'–',Math.round(.585*1772),Math.round(.637*1181)-6);
-      ctx.fillText(ablStr,Math.round(.585*1772),Math.round(.730*1181)+12);
-      canvas.toBlob(blob=>{
-        folder.file('Gutschein_'+c.code+'.jpg',blob);
-        next(i+1);
-      },'image/jpeg',0.95);
-    };
-    img.src=BG;
-  }
-  next(0);
+  });
 }
 window._toggleSel = function(id){
   if(selectedIds.has(id)) selectedIds.delete(id);
