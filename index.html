@@ -446,7 +446,8 @@ function renderVG(){
 
 function goMenu(){
   if(codesUnsub){codesUnsub();codesUnsub=null}
-  codes=[];curSchool='';
+  if(groupsUnsub){groupsUnsub();groupsUnsub=null}
+  codes=[];persistedGroups=[];curSchool='';
   document.getElementById('app').classList.remove('show');
   showScreen('aktionen-menu');
   renderMenu(curKategorie);
@@ -486,6 +487,8 @@ function renderOv(){
   document.getElementById('ov-d').textContent=don;
   const gs={};
   codes.forEach(c=>{if(!gs[c.school])gs[c.school]={t:0,d:0};gs[c.school].t++;if(c.redeemed)gs[c.school].d++});
+  // Add persisted groups that have no codes yet (or all deleted)
+  persistedGroups.forEach(name=>{if(!gs[name])gs[name]={t:0,d:0}});
   const el=document.getElementById('grp-list');
   if(!Object.keys(gs).length){el.innerHTML='<div class="empty"><div class="ei">🏫</div>Noch keine Gruppen</div>';return}
   el.innerHTML=Object.entries(gs).map(([n,s])=>{
@@ -525,6 +528,8 @@ document.getElementById('cr-btn').onclick=async()=>{
   const ex=new Set(codes.map(c=>c.code));
   const batch=writeBatch(db);
   for(let i=0;i<count;i++){let code,t=0;do{code=genCode(school);t++}while(ex.has(code)&&t<100);ex.add(code);batch.set(doc(collection(db,'aktionen_'+curAktion.id)),{code,school,wert,redeemed:false,date:null,created:new Date().toISOString()})}
+  // Save group name to persist even when all codes deleted
+  await setDoc(doc(db,'aktionen_'+curAktion.id+'_groups',school.replace(/[^a-z0-9]/gi,'_')),{name:school,created:new Date().toISOString()},{merge:true});
   await batch.commit();btn.textContent='＋ Codes generieren';btn.disabled=false;
   document.getElementById('cr-school').value='';document.getElementById('cr-wert').value='';
   toast(count+' Codes erstellt ✓');showTab('ov');
@@ -693,6 +698,9 @@ document.getElementById('dl-cancel').onclick=()=>showOv(null);
 document.getElementById('cfm-no').onclick=()=>{showOv(null);pendingFn=null};
 document.getElementById('cfm-yes').onclick=async()=>{showOv(null);if(pendingFn)await pendingFn();pendingFn=null};
 
+let persistedGroups=[];
+let groupsUnsub=null;
+
 function openAktion(id){
   curAktion=aktionen.find(a=>a.id===id);
   if(!curAktion)return;
@@ -702,7 +710,12 @@ function openAktion(id){
   document.getElementById('app').classList.add('show');
   showTab('ov');
   if(codesUnsub){codesUnsub();codesUnsub=null}
+  if(groupsUnsub){groupsUnsub();groupsUnsub=null}
   setSy(true);
+  // Listen to groups collection
+  groupsUnsub=onSnapshot(collection(db,'aktionen_'+id+'_groups'),snap=>{
+    persistedGroups=snap.docs.map(d=>d.data().name);
+  });
   codesUnsub=onSnapshot(query(collection(db,'aktionen_'+id),orderBy('created','asc')),snap=>{
     codes=snap.docs.map(d=>({id:d.id,...d.data()}));
     setSy(false);renderAll();if(curSchool)renderDet();
@@ -722,6 +735,11 @@ window._editGrp = async function(school){
   if(neu&&neu.trim()&&neu.trim()!==school){
     const batch=writeBatch(db);
     codes.filter(c=>c.school===school).forEach(c=>batch.update(doc(db,'aktionen_'+curAktion.id,c.id),{school:neu.trim()}));
+    // Update group name in persistence store
+    const oldKey=school.replace(/[^a-z0-9]/gi,'_');
+    const newKey=neu.trim().replace(/[^a-z0-9]/gi,'_');
+    batch.delete(doc(db,'aktionen_'+curAktion.id+'_groups',oldKey));
+    batch.set(doc(db,'aktionen_'+curAktion.id+'_groups',newKey),{name:neu.trim(),created:new Date().toISOString()});
     await batch.commit();
     toast('Gruppe umbenannt ✓');
   }
@@ -732,6 +750,8 @@ window._delGrp = function(school){
   cfm('Gruppe löschen?',`<p>Alle <strong>${n}</strong> Codes von "<strong>${school}</strong>" werden dauerhaft gelöscht.</p>`,async()=>{
     const batch=writeBatch(db);
     codes.filter(c=>c.school===school).forEach(c=>batch.delete(doc(db,'aktionen_'+curAktion.id,c.id)));
+    // Also delete from persistence store
+    batch.delete(doc(db,'aktionen_'+curAktion.id+'_groups',school.replace(/[^a-z0-9]/gi,'_')));
     await batch.commit();
     toast('Gruppe gelöscht ✓');
   });
