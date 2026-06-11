@@ -489,7 +489,7 @@ function renderOv(){
   el.innerHTML=Object.entries(gs).map(([n,s])=>{
     const ini=n.replace(/fahrschule\s*/i,'').trim().substring(0,2).toUpperCase();
     const pct=s.t?Math.round(s.d/s.t*100):0;
-    return `<div class="scard" data-act="open-g" data-school="${n}"><div class="savt">${ini}</div><div style="flex:1;min-width:0"><div class="sname">${n}</div><div class="smeta">${s.t-s.d} offen · ${s.d} eingelöst · ${s.t} gesamt</div><div class="pbar"><div class="pbar-f" style="width:${pct}%"></div></div></div><span style="color:var(--txt3);font-size:18px">›</span></div>`;
+    return `<div class="scard"><div class="savt" data-act="open-g" data-school="${n}" style="cursor:pointer">${ini}</div><div style="flex:1;min-width:0;cursor:pointer" data-act="open-g" data-school="${n}"><div class="sname">${n}</div><div class="smeta">${s.t-s.d} offen · ${s.d} eingelöst · ${s.t} gesamt</div><div class="pbar"><div class="pbar-f" style="width:${pct}%"></div></div></div><div style="display:flex;gap:6px;flex-shrink:0"><button class="bsm b-edt" data-act="edit-grp" data-school="${n}" style="font-size:16px;padding:8px 11px">✏️</button><button class="bsm b-del" data-act="del-grp" data-school="${n}" style="font-size:16px;padding:8px 11px">🗑</button></div></div>`;
   }).join('');
 }
 function renderDet(){
@@ -618,6 +618,26 @@ document.addEventListener('click',async e=>{
   if(a==='edit-a'){const ak=aktionen.find(x=>x.id===id);if(!ak)return;editAktionId=id;selEmoji=ak.emoji||'🎁';selVorlage=ak.vorlage||'fotoriede';document.getElementById('oa-name').value=ak.name;document.getElementById('ov-aktion-title').textContent='Aktion bearbeiten';document.getElementById('oa-save').textContent='Speichern';renderEG();renderVG();showOv('ov-aktion')}
   if(a==='del-a')cfm('Aktion löschen?',`<p>"${el.dataset.name}" wird gelöscht.</p>`,async()=>{await deleteDoc(doc(db,'aktionen_meta',id));toast('Gelöscht');renderMenu(curKategorie)});
   if(a==='open-g')openGrp(el.dataset.school);
+  if(a==='edit-grp'){
+    const oldName=el.dataset.school;
+    const neu=prompt('Gruppenname ändern:',oldName);
+    if(neu&&neu.trim()&&neu.trim()!==oldName){
+      const batch=writeBatch(db);
+      codes.filter(c=>c.school===oldName).forEach(c=>batch.update(doc(db,'aktionen_'+curAktion.id,c.id),{school:neu.trim()}));
+      await batch.commit();
+      toast('Gruppe umbenannt ✓');
+    }
+  }
+  if(a==='del-grp'){
+    const school=el.dataset.school;
+    const n=codes.filter(c=>c.school===school).length;
+    cfm('Gruppe löschen?',`<p>Alle <strong>${n}</strong> Codes von "<strong>${school}</strong>" werden dauerhaft gelöscht.</p>`,async()=>{
+      const batch=writeBatch(db);
+      codes.filter(c=>c.school===school).forEach(c=>batch.delete(doc(db,'aktionen_'+curAktion.id,c.id)));
+      await batch.commit();
+      toast('Gruppe gelöscht ✓');
+    });
+  }
   if(a==='prefill'){
     const schools=[...new Set(codes.map(c=>c.school))];
     const idx=parseInt(el.dataset.idx||'0');
