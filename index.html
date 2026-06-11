@@ -641,20 +641,51 @@ function toggleSelectMode(on){
       cancel=document.createElement('button');
       cancel.id='sel-cancel';
       cancel.className='btn btn-o';
-      cancel.style.cssText='flex:1;min-width:100px;font-size:13px;padding:11px 10px;margin-top:8px';
+      cancel.style.cssText='flex:1;min-width:100px;font-size:13px;padding:11px 10px';
       cancel.textContent='Abbrechen';
       cancel.onclick=()=>toggleSelectMode(false);
       document.querySelector('.dacts').appendChild(cancel);
     }
     cancel.style.display='';
+    // Add "Alle auswählen" bar
+    let selBar=document.getElementById('sel-bar');
+    if(!selBar){
+      selBar=document.createElement('div');
+      selBar.id='sel-bar';
+      selBar.style.cssText='display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--brd);margin-bottom:8px';
+      selBar.innerHTML=`<input type="checkbox" id="sel-all-cb" style="width:20px;height:20px;cursor:pointer;accent-color:var(--acc)"><label for="sel-all-cb" style="font-size:14px;font-weight:500;cursor:pointer;color:var(--txt)">Alle auswählen</label><span id="sel-count" style="font-size:13px;color:var(--txt2);margin-left:auto">0 ausgewählt</span>`;
+      document.getElementById('det-list').before(selBar);
+    }
+    selBar.style.display='flex';
+    document.getElementById('sel-all-cb').onchange=function(){
+      const list=codes.filter(c=>c.school===curSchool&&(detF==='all'||(detF==='open'&&!c.redeemed)||(detF==='done'&&c.redeemed)));
+      if(this.checked) list.forEach(c=>selectedIds.add(c.id));
+      else selectedIds=new Set();
+      updateSelCount();
+      renderDet();
+    };
   } else {
     btn.textContent='🗑 Löschen';
     btn.style.background='';
     btn.style.color='';
     const cancel=document.getElementById('sel-cancel');
     if(cancel)cancel.style.display='none';
+    const selBar=document.getElementById('sel-bar');
+    if(selBar)selBar.style.display='none';
   }
   renderDet();
+}
+
+function updateSelCount(){
+  const el=document.getElementById('sel-count');
+  if(el) el.textContent=selectedIds.size+' ausgewählt';
+  // Update "alle" checkbox
+  const allCb=document.getElementById('sel-all-cb');
+  if(allCb){
+    const list=codes.filter(c=>c.school===curSchool&&(detF==='all'||(detF==='open'&&!c.redeemed)||(detF==='done'&&c.redeemed)));
+    allCb.checked=list.length>0&&list.every(c=>selectedIds.has(c.id));
+    allCb.indeterminate=selectedIds.size>0&&!allCb.checked;
+  }
 }
 document.getElementById('dl-pdf').onclick=()=>{showOv(null);printVouchers(codes.filter(c=>c.school===curSchool&&!c.redeemed));toast('Als PDF speichern wählen')};
 document.getElementById('dl-jpg').onclick=()=>{showOv(null);dlJPEGs(curSchool)};
@@ -682,6 +713,7 @@ window._openGrp = function(school){ openGrp(school); };
 window._toggleSel = function(id){
   if(selectedIds.has(id)) selectedIds.delete(id);
   else selectedIds.add(id);
+  updateSelCount();
   renderDet();
 };
 
