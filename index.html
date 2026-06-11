@@ -249,7 +249,8 @@ hr{border:none;border-top:1px solid var(--brd);margin:18px 0}
     <h3>Download Format</h3>
     <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px">
       <button class="btn btn-a" id="dl-pdf">📄 Alle als PDF</button>
-      <button class="btn btn-o" id="dl-jpg">🖼 Alle als JPEGs</button>
+      <button class="btn btn-o" id="dl-jpg">🖼 Alle als JPEGs (ZIP)</button>
+      <button class="btn btn-o" id="dl-single">☑️ Einzelne auswählen</button>
       <button class="btn btn-o" id="dl-cancel">Abbrechen</button>
     </div>
   </div>
@@ -502,7 +503,20 @@ function renderDet(){
   const list=codes.filter(c=>c.school===curSchool&&(detF==='all'||(detF==='open'&&!c.redeemed)||(detF==='done'&&c.redeemed)));
   const el=document.getElementById('det-list');
   if(!list.length){el.innerHTML='<div class="empty"><div class="ei">🎟</div>Keine Codes</div>';return}
-  el.innerHTML='<div class="clist">'+list.map(c=>`<div class="ccard${c.redeemed?' done':''}" style="${selectMode&&selectedIds.has(c.id)?'border-color:var(--acc);background:rgba(108,99,255,.12)':''}"><div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">${selectMode?`<input type="checkbox" ${selectedIds.has(c.id)?'checked':''} onclick="window._toggleSel('${c.id}')" style="width:20px;height:20px;cursor:pointer;accent-color:var(--acc)">`:''}<div style="min-width:0"><div class="ctxt">${c.code}</div><div class="cmeta">${c.wert?(c.wert.includes('€')?c.wert:c.wert+' €')+' · ':''}${c.redeemed?'Eingelöst · '+c.date:'Offen'}</div></div></div>${selectMode?'':`<span class="badge ${c.redeemed?'bd':'bo'}">${c.redeemed?'✓':'Offen'}</span><div class="br"><button class="bsm ${c.redeemed?'b-undo':'b-chk'}" data-act="tog" data-id="${c.id}" data-r="${c.redeemed}">${c.redeemed?'↩':'✓'}</button><button class="bsm b-edt" data-act="edit-c" data-id="${c.id}">✏️</button><button class="bsm b-prt" data-act="prt1" data-id="${c.id}">🖨</button><button class="bsm b-del" data-act="del-c" data-id="${c.id}" data-code="${c.code}">🗑</button></div>`}</div>`).join('')+'</div>';
+  const anySelMode = selectMode || dlSelectMode;
+  el.innerHTML='<div class="clist">'+list.map(c=>{
+    const isDelSel = selectMode && selectedIds.has(c.id);
+    const isDlSel = dlSelectMode && dlSelectedIds.has(c.id);
+    const isSelected = isDelSel || isDlSel;
+    const selStyle = isSelected ? 'border-color:var(--acc);background:rgba(108,99,255,.12)' : '';
+    const cb = selectMode
+      ? `<input type="checkbox" ${isDelSel?'checked':''} onclick="window._toggleSel('${c.id}')" style="width:20px;height:20px;cursor:pointer;accent-color:var(--acc)">`
+      : dlSelectMode
+      ? `<input type="checkbox" ${isDlSel?'checked':''} onclick="window._toggleDlSel('${c.id}')" style="width:20px;height:20px;cursor:pointer;accent-color:var(--acc)">`
+      : '';
+    const btns = anySelMode ? '' : `<span class="badge ${c.redeemed?'bd':'bo'}">${c.redeemed?'✓':'Offen'}</span><div class="br"><button class="bsm ${c.redeemed?'b-undo':'b-chk'}" data-act="tog" data-id="${c.id}" data-r="${c.redeemed}">${c.redeemed?'↩':'✓'}</button><button class="bsm b-edt" data-act="edit-c" data-id="${c.id}">✏️</button><button class="bsm b-prt" data-act="prt1" data-id="${c.id}">🖨</button><button class="bsm b-del" data-act="del-c" data-id="${c.id}" data-code="${c.code}">🗑</button></div>`;
+    return `<div class="ccard${c.redeemed?' done':''}" style="${selStyle}"><div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">${cb}<div style="min-width:0"><div class="ctxt">${c.code}</div><div class="cmeta">${c.wert?(c.wert.includes('€')?c.wert:c.wert+' €')+' · ':''}${c.redeemed?'Eingelöst · '+c.date:'Offen'}</div></div></div>${btns}</div>`;
+  }).join('')+'</div>';
 }
 function renderLi(){
   const q=(document.getElementById('li-search').value||'').toLowerCase();
@@ -695,6 +709,10 @@ function updateSelCount(){
 document.getElementById('dl-pdf').onclick=()=>{showOv(null);printVouchers(codes.filter(c=>c.school===curSchool&&!c.redeemed));toast('Als PDF speichern wählen')};
 document.getElementById('dl-jpg').onclick=()=>{showOv(null);dlJPEGs(curSchool)};
 document.getElementById('dl-cancel').onclick=()=>showOv(null);
+document.getElementById('dl-single').onclick=()=>{
+  showOv(null);
+  startDlSelectMode();
+};
 document.getElementById('cfm-no').onclick=()=>{showOv(null);pendingFn=null};
 document.getElementById('cfm-yes').onclick=async()=>{showOv(null);if(pendingFn)await pendingFn();pendingFn=null};
 
@@ -723,6 +741,96 @@ function openAktion(id){
 }
 
 window._openGrp = function(school){ openGrp(school); };
+
+// Download select mode
+let dlSelectMode=false;
+let dlSelectedIds=new Set();
+
+function startDlSelectMode(){
+  dlSelectMode=true;
+  dlSelectedIds=new Set();
+  // Show download action bar
+  let dlBar=document.getElementById('dl-sel-bar');
+  if(!dlBar){
+    dlBar=document.createElement('div');
+    dlBar.id='dl-sel-bar';
+    dlBar.style.cssText='display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap';
+    dlBar.innerHTML=`
+      <button class="btn btn-a" id="dl-sel-pdf" style="flex:1;font-size:13px;padding:10px">📄 Als PDF</button>
+      <button class="btn btn-o" id="dl-sel-jpg" style="flex:1;font-size:13px;padding:10px">🖼 Als JPEGs</button>
+      <button class="btn btn-o" id="dl-sel-cancel" style="flex:1;font-size:13px;padding:10px">Abbrechen</button>`;
+    document.getElementById('det-list').before(dlBar);
+    document.getElementById('dl-sel-pdf').onclick=()=>{
+      if(!dlSelectedIds.size){toast('Keine Codes ausgewählt');return;}
+      const list=codes.filter(c=>dlSelectedIds.has(c.id));
+      printVouchers(list);
+      stopDlSelectMode();
+    };
+    document.getElementById('dl-sel-jpg').onclick=()=>{
+      if(!dlSelectedIds.size){toast('Keine Codes ausgewählt');return;}
+      const list=codes.filter(c=>dlSelectedIds.has(c.id));
+      dlJPEGsList(list);
+      stopDlSelectMode();
+    };
+    document.getElementById('dl-sel-cancel').onclick=stopDlSelectMode;
+  }
+  dlBar.style.display='flex';
+  renderDet();
+}
+
+function stopDlSelectMode(){
+  dlSelectMode=false;
+  dlSelectedIds=new Set();
+  const dlBar=document.getElementById('dl-sel-bar');
+  if(dlBar)dlBar.style.display='none';
+  renderDet();
+}
+
+window._toggleDlSel = function(id){
+  if(dlSelectedIds.has(id)) dlSelectedIds.delete(id);
+  else dlSelectedIds.add(id);
+  renderDet();
+};
+
+function dlJPEGsList(list){
+  if(!list.length){toast('Keine Codes');return}
+  const abl=new Date();abl.setFullYear(abl.getFullYear()+1);
+  const ablStr=abl.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
+  toast('JPEGs werden erstellt...');
+  const zip=new JSZip();
+  const folder=zip.folder('Gutscheine');
+  function next(i){
+    if(i>=list.length){
+      zip.generateAsync({type:'blob'}).then(blob=>{
+        const a=document.createElement('a');
+        a.href=URL.createObjectURL(blob);
+        a.download='Gutscheine_Auswahl.zip';
+        a.click();
+        toast(list.length+' JPEGs heruntergeladen ✓');
+      });
+      return;
+    }
+    const c=list[i];
+    const canvas=document.createElement('canvas');
+    canvas.width=1772;canvas.height=1181;
+    const ctx=canvas.getContext('2d');
+    const img=new Image();
+    img.onload=()=>{
+      ctx.drawImage(img,0,0,1772,1181);
+      ctx.font='500 46px Arial';ctx.fillStyle='#141414';ctx.textBaseline='middle';
+      ctx.fillText(c.school||'',Math.round(.585*1772),Math.round(.400*1181)+12);
+      ctx.fillText(c.code||'',Math.round(.585*1772),Math.round(.518*1181)+6);
+      ctx.fillText(c.wert||'–',Math.round(.585*1772),Math.round(.637*1181)-6);
+      ctx.fillText(ablStr,Math.round(.585*1772),Math.round(.730*1181)+12);
+      canvas.toBlob(blob=>{
+        folder.file('Gutschein_'+c.code+'.jpg',blob);
+        next(i+1);
+      },'image/jpeg',0.95);
+    };
+    img.src=BG;
+  }
+  next(0);
+}
 window._toggleSel = function(id){
   if(selectedIds.has(id)) selectedIds.delete(id);
   else selectedIds.add(id);
