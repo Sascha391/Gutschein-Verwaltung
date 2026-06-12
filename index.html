@@ -553,8 +553,19 @@ function applyKatNames(){
 }
 applyKatNames();
 
+function clearMainScan(){
+  const inp=document.getElementById('main-scan-inp');
+  const res=document.getElementById('main-scan-res');
+  const act=document.getElementById('main-scan-act');
+  if(inp) inp.value='';
+  if(res){ res.style.display='none'; res.innerHTML=''; }
+  if(act) act.style.display='none';
+  mainScanId=null; mainScanAktionId=null;
+}
+
 document.getElementById('kat-aktion-card').onclick = function(e) {
   if(e.target.closest('#kat-aktion-edit')) return;
+  clearMainScan();
   curKategorie = 'aktion';
   document.getElementById('akat-title').textContent = katNames.aktion;
   showScreen('aktionen-menu');
@@ -563,6 +574,7 @@ document.getElementById('kat-aktion-card').onclick = function(e) {
 
 document.getElementById('kat-normal-card').onclick = function(e) {
   if(e.target.closest('#kat-normal-edit')) return;
+  clearMainScan();
   curKategorie = 'normal';
   window.openNormalGutscheine();
 };
