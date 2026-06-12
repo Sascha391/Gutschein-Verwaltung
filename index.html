@@ -623,9 +623,9 @@ function showTab(name){
 }
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>showTab(t.dataset.tab));
 
-// Detail search and sort listeners
-document.getElementById('det-search-inp').addEventListener('input', renderDet);
-document.getElementById('det-sort').addEventListener('change', renderDet);
+// Detail search and sort listeners - use event delegation to avoid null errors
+document.addEventListener('input', e => { if(e.target.id==='det-search-inp') renderDet(); });
+document.addEventListener('change', e => { if(e.target.id==='det-sort') renderDet(); });
 
 function renderAll(){renderOv();renderLi();renderExist()}
 function renderOv(){
