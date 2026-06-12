@@ -623,9 +623,7 @@ function showTab(name){
 }
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>showTab(t.dataset.tab));
 
-// Detail search and sort listeners - use event delegation to avoid null errors
-document.addEventListener('input', e => { if(e.target.id==='det-search-inp') renderDet(); });
-document.addEventListener('change', e => { if(e.target.id==='det-sort') renderDet(); });
+
 
 function renderAll(){renderOv();renderLi();renderExist()}
 function renderOv(){
@@ -1186,6 +1184,10 @@ document.querySelectorAll('[data-ngf]').forEach(b => b.onclick = () => {
   document.querySelectorAll('[data-ngf]').forEach(x => x.classList.toggle('on', x===b));
   renderNormalList();
 });
+
+// Search + sort listeners at the very end so all functions are defined
+document.addEventListener('input', e=>{ if(e.target.id==='det-search-inp') renderDet(); });
+document.addEventListener('change', e=>{ if(e.target.id==='det-sort') renderDet(); });
 </script>
 </body>
 </html>
