@@ -223,7 +223,7 @@ hr{border:none;border-top:1px solid var(--brd);margin:18px 0}
       </div>
       <div class="sw" style="margin-bottom:10px">
         <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        <input class="si" id="det-search" type="text" placeholder="Code suchen…" oninput="renderDet()">
+        <input class="si" id="det-search" type="text" placeholder="Code suchen…" id="det-search-inp">
       </div>
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
         <div class="frow" style="margin-bottom:0;flex:1">
@@ -231,7 +231,7 @@ hr{border:none;border-top:1px solid var(--brd);margin:18px 0}
           <button class="fbtn" data-df="open">Offen</button>
           <button class="fbtn" data-df="done">Eingelöst</button>
         </div>
-        <select id="det-sort" onchange="renderDet()" style="background:var(--surf);border:1px solid var(--brd2);border-radius:var(--rs);color:var(--txt);font-size:13px;padding:7px 10px;outline:none;cursor:pointer">
+        <select id="det-sort"  style="background:var(--surf);border:1px solid var(--brd2);border-radius:var(--rs);color:var(--txt);font-size:13px;padding:7px 10px;outline:none;cursor:pointer">
           <option value="newest">Neueste zuerst</option>
           <option value="oldest">Älteste zuerst</option>
           <option value="code">Code A–Z</option>
@@ -607,6 +607,7 @@ function closeDet(){
   curSchool='';
   if(selectMode)toggleSelectMode(false);
   const ds=document.getElementById('det-search');if(ds)ds.value='';
+  const ds2=document.getElementById('det-search-inp');if(ds2)ds2.value='';
   document.getElementById('back-btn').style.display='none';
   document.getElementById('hdr-title').textContent=curAktion?curAktion.name:'Gutscheine';
   showTab('ov');
@@ -620,6 +621,10 @@ function showTab(name){
   if(name!=='det'){curSchool='';if(name!=='ov'&&name!=='cr'&&name!=='sc'&&name!=='li')document.getElementById('back-btn').style.display='none';else document.getElementById('back-btn').style.display='block';document.getElementById('hdr-title').textContent=curAktion?curAktion.name:'Gutscheine'}
 }
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>showTab(t.dataset.tab));
+
+// Detail search and sort listeners
+document.getElementById('det-search-inp').addEventListener('input', renderDet);
+document.getElementById('det-sort').addEventListener('change', renderDet);
 
 function renderAll(){renderOv();renderLi();renderExist()}
 function renderOv(){
@@ -641,7 +646,7 @@ function renderOv(){
   }).join('');
 }
 function renderDet(){
-  const q=(document.getElementById('det-search')?.value||'').toLowerCase();
+  const q=((document.getElementById('det-search-inp')||document.getElementById('det-search'))?.value||'').toLowerCase();
   const sort=document.getElementById('det-sort')?.value||'newest';
   let list=codes.filter(c=>c.school===curSchool&&(detF==='all'||(detF==='open'&&!c.redeemed)||(detF==='done'&&c.redeemed)));
   if(q) list=list.filter(c=>(c.code||'').toLowerCase().includes(q)||(c.wert||'').toLowerCase().includes(q));
