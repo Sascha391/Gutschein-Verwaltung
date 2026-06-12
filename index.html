@@ -601,14 +601,18 @@ window.openStatistik = async function() {
     const tot = docs.length;
     const red = docs.filter(d => d.redeemed).length;
     const opn = tot - red;
-    // Sum values
-    let wertSum = 0;
+    // Sum values per status
+    let wertSum = 0, wertOpen = 0, wertRed = 0;
     docs.forEach(d => {
       const w = parseFloat((d.wert||'0').replace(/[^0-9.,]/g,'').replace(',','.'));
-      if(!isNaN(w)) wertSum += w;
+      if(!isNaN(w)) {
+        wertSum += w;
+        if(d.redeemed) wertRed += w; else wertOpen += w;
+      }
     });
-    aktionenStats.push({name: aktion.name, emoji: aktion.emoji||'🎁', tot, opn, red, wert: wertSum});
-    totalCodes += tot; openCodes += opn; redeemedCodes += red; totalWert += wertSum;
+    aktionenStats.push({name: aktion.name, emoji: aktion.emoji||'🎁', tot, opn, red, wert: wertSum, wertOpen, wertRed});
+    totalCodes += tot; openCodes += opn; redeemedCodes += red;
+    totalWert += wertSum; openWert += wertOpen; redeemedWert += wertRed;
   }
 
   // Load normal gutscheine
