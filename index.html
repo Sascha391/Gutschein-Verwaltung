@@ -422,9 +422,13 @@ function renderNormalCanvas(c) {
       ctx.fillStyle = '#141414';
       ctx.textBaseline = 'middle';
       const x = Math.round(0.530 * 1772);
-      ctx.fillText(c.code  || '', x, Math.round(0.540 * 1181));
-      ctx.fillText(c.wert  || '', x, Math.round(0.658 * 1181));
-      ctx.fillText(c.ablauf|| '', x, Math.round(0.772 * 1181) - 12);
+      const px1mm = 12;
+      // FÜR und VON nur wenn ausgefüllt
+      if(c.fuer)  ctx.fillText(c.fuer,   x, Math.round(0.290 * 1181) + 3*px1mm);
+      if(c.von)   ctx.fillText(c.von,    x, Math.round(0.415 * 1181) + px1mm);
+      ctx.fillText(c.code   || '', x, Math.round(0.540 * 1181));
+      ctx.fillText(c.wert   || '', x, Math.round(0.658 * 1181));
+      ctx.fillText(c.ablauf || '', x, Math.round(0.772 * 1181) - px1mm);
       resolve(canvas.toDataURL('image/jpeg', 0.97));
     };
     img.src = BG_NORMAL;
