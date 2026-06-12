@@ -176,6 +176,15 @@ hr{border:none;border-top:1px solid var(--brd);margin:18px 0}
     <button class="btn btn-a" id="ng-create-btn">＋ Gutschein erstellen</button>
     <hr>
     <div class="lbl">Vorhandene Gutscheine</div>
+    <div class="sw" style="margin-bottom:10px">
+      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input class="si" id="ng-search" type="text" placeholder="Code, Name oder Bemerkung suchen…">
+    </div>
+    <div class="frow" style="margin-bottom:10px">
+      <button class="fbtn on" data-ngf="all">Alle</button>
+      <button class="fbtn" data-ngf="open">Offen</button>
+      <button class="fbtn" data-ngf="done">Eingelöst</button>
+    </div>
     <div id="ng-list"></div>
   </div>
 </div>
@@ -366,23 +375,35 @@ window.openNormalGutscheine = function() {
   });
 };
 
+let ngFilter = 'all';
+
 function renderNormalList() {
   const el = document.getElementById('ng-list');
-  if(!normalCodes.length) { el.innerHTML = '<div style="color:var(--txt3);font-size:13px;padding:8px 0">Noch keine Gutscheine</div>'; return; }
-  el.innerHTML = '<div class="clist">' + normalCodes.map(c => `
+  const q = (document.getElementById('ng-search')?.value||'').toLowerCase();
+  const list = normalCodes.filter(c => {
+    const matchFilter = ngFilter==='all' || (ngFilter==='open'&&!c.redeemed) || (ngFilter==='done'&&c.redeemed);
+    const matchSearch = !q || (c.code||'').toLowerCase().includes(q) || (c.fuer||'').toLowerCase().includes(q) || (c.von||'').toLowerCase().includes(q) || (c.bemerkung||'').toLowerCase().includes(q) || (c.wert||'').toLowerCase().includes(q);
+    return matchFilter && matchSearch;
+  });
+  if(!list.length) { el.innerHTML = '<div style="color:var(--txt3);font-size:13px;padding:8px 0">'+(normalCodes.length?'Keine Ergebnisse':'Noch keine Gutscheine')+'</div>'; return; }
+  el.innerHTML = '<div class="clist">' + list.map(c => `
     <div class="ccard${c.redeemed?' done':''}">
       <div style="flex:1;min-width:0">
         <div class="ctxt">${c.code}</div>
-        <div class="cmeta">${c.fuer ? 'Für: '+c.fuer+' · ' : ''}${c.wert||''} · bis ${c.ablauf||''}</div>${c.bemerkung?`<div style="font-size:11px;color:var(--acc2);margin-top:2px">📝 ${c.bemerkung}</div>`:''}
+        <div class="cmeta">${c.fuer?'Für: '+c.fuer+' · ':''}${c.wert||''} · bis ${c.ablauf||''}</div>
+        ${c.redeemed&&c.redeemedDate?`<div style="font-size:11px;color:var(--grn);margin-top:3px">✓ Eingelöst am ${c.redeemedDate}</div>`:''}
+        ${c.bemerkung?`<div style="font-size:11px;color:var(--acc2);margin-top:3px">📝 ${c.bemerkung}</div>`:''}
       </div>
       <div class="br">
         <button class="bsm ${c.redeemed?'b-undo':'b-chk'}" onclick="window._toggleNormal('${c.id}',${c.redeemed})">${c.redeemed?'↩':'✓'}</button>
+        <button class="bsm b-edt" onclick="window._editNormal('${c.id}')">✏️</button>
         <button class="bsm b-prt" onclick="window._printNormal('${c.id}')">🖨</button>
         <button class="bsm b-prt" onclick="window._dlNormal('${c.id}')">⬇</button>
         <button class="bsm b-del" onclick="window._delNormal('${c.id}','${c.code}')">🗑</button>
       </div>
     </div>`).join('') + '</div>';
 }
+
 
 function genNormalCode() {
   const p = 'NOR';
@@ -977,8 +998,37 @@ document.getElementById('ng-create-btn').onclick = async function() {
 };
 
 window._toggleNormal = async function(id, redeemed) {
-  await updateDoc(doc(db, 'normal_gutscheine', id), {redeemed: !redeemed});
-  toast(!redeemed ? 'Eingelöst ✓' : 'Zurückgesetzt');
+  const newVal = !redeemed;
+  await updateDoc(doc(db, 'normal_gutscheine', id), {
+    redeemed: newVal,
+    redeemedDate: newVal ? new Date().toLocaleDateString('de-DE') : null
+  });
+  toast(newVal ? 'Eingelöst ✓' : 'Zurückgesetzt');
+};
+
+window._editNormal = function(id) {
+  const c = normalCodes.find(x => x.id === id);
+  if(!c) return;
+  const ok = document.getElementById('cfm-yes');
+  ok.textContent = 'Speichern';
+  ok.className = 'btn btn-a';
+  pendingFn = async () => {
+    const fuer = document.getElementById('en-fuer').value.trim();
+    const von  = document.getElementById('en-von').value.trim();
+    const wert = document.getElementById('en-wert').value.trim();
+    const bem  = document.getElementById('en-bem').value.trim();
+    const wertFmt = wert && !wert.includes('€') ? wert+' €' : wert;
+    await updateDoc(doc(db, 'normal_gutscheine', id), {fuer, von, wert: wertFmt, bemerkung: bem});
+    ok.textContent = 'Löschen'; ok.className = 'btn btn-d';
+    toast('Gespeichert ✓');
+  };
+  document.getElementById('cfm-t').textContent = 'Gutschein bearbeiten';
+  document.getElementById('cfm-b').innerHTML = `
+    <div class="fg" style="margin-bottom:10px"><label class="fl">Für</label><input class="fi" id="en-fuer" type="text" value="${c.fuer||''}"></div>
+    <div class="fg" style="margin-bottom:10px"><label class="fl">Von</label><input class="fi" id="en-von" type="text" value="${c.von||''}"></div>
+    <div class="fg" style="margin-bottom:10px"><label class="fl">Wert</label><input class="fi" id="en-wert" type="text" value="${c.wert||''}"></div>
+    <div class="fg"><label class="fl">Bemerkung</label><textarea class="fi" id="en-bem" rows="2" style="resize:none">${c.bemerkung||''}</textarea></div>`;
+  document.getElementById('ov-cfm').classList.add('show');
 };
 
 window._delNormal = function(id, code) {
@@ -1044,6 +1094,14 @@ document.querySelectorAll('[data-df]').forEach(b=>b.onclick=()=>{detF=b.dataset.
 document.querySelectorAll('[data-lf]').forEach(b=>b.onclick=()=>{listF=b.dataset.lf;document.querySelectorAll('[data-lf]').forEach(x=>x.classList.toggle('on',x===b));renderLi()});
 document.getElementById('li-search').oninput=renderLi;
 document.querySelectorAll('.ov').forEach(o=>o.onclick=e=>{if(e.target===o)showOv(null)});
+
+// Normal Gutschein search + filter
+document.getElementById('ng-search').addEventListener('input', renderNormalList);
+document.querySelectorAll('[data-ngf]').forEach(b => b.onclick = () => {
+  ngFilter = b.dataset.ngf;
+  document.querySelectorAll('[data-ngf]').forEach(x => x.classList.toggle('on', x===b));
+  renderNormalList();
+});
 </script>
 </body>
 </html>
