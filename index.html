@@ -218,6 +218,7 @@ hr{border:none;border-top:1px solid var(--brd);margin:18px 0}
       <div class="dacts">
         <button class="btn btn-g" id="det-print">🖨 Drucken</button>
         <button class="btn btn-o" id="det-dl">⬇ Download</button>
+        <button class="btn btn-o" id="det-add">＋ Codes</button>
         <button class="btn btn-d" id="det-del">🗑 Löschen</button>
       </div>
       <div class="frow">
@@ -575,6 +576,21 @@ function openGrp(school){
   document.getElementById('back-btn').style.display='block';
   document.getElementById('hdr-title').textContent=school;
 }
+
+function openGrpSmart(school){
+  const groupCodes = codes.filter(c=>c.school===school);
+  if(groupCodes.length===0){
+    // Gruppe ist leer - direkt zum Erstellen Tab mit vorausgefülltem Namen
+    curSchool=school;
+    document.getElementById('cr-school').value=school;
+    document.getElementById('back-btn').style.display='block';
+    document.getElementById('hdr-title').textContent=school;
+    showTab('cr');
+    toast('Gruppe ist leer – neue Codes erstellen');
+  } else {
+    openGrp(school);
+  }
+}
 function closeDet(){
   curSchool='';
   if(selectMode)toggleSelectMode(false);
@@ -733,6 +749,12 @@ function dlJPEGs(school){
 
 
 document.getElementById('det-print').onclick=()=>printVouchers(codes.filter(c=>c.school===curSchool&&!c.redeemed));
+document.getElementById('det-add').onclick=()=>{
+  document.getElementById('cr-school').value=curSchool;
+  document.getElementById('cr-wert').value=codes.find(c=>c.school===curSchool)?.wert||'';
+  showTab('cr');
+  document.getElementById('cr-count').focus();
+};
 document.getElementById('det-dl').onclick=()=>{if(curSchool)showOv('ov-dl')};
 document.getElementById('det-del').onclick=()=>{
   if(selectMode){
@@ -848,7 +870,7 @@ function openAktion(id){
   },err=>{setSy(false);toast('Fehler: '+err.message)});
 }
 
-window._openGrp = function(school){ openGrp(school); };
+window._openGrp = function(school){ openGrpSmart(school); };
 
 // Download select mode
 let dlSelectMode=false;
