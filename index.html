@@ -741,6 +741,8 @@ document.getElementById('det-del').onclick=()=>{
     cfm('Ausgewählte löschen?',`<p><strong>${selectedIds.size}</strong> Code(s) werden gelöscht.</p>`,async()=>{
       const batch=writeBatch(db);
       selectedIds.forEach(id=>batch.delete(doc(db,'aktionen_'+curAktion.id,id)));
+      // Keep group alive in persistence store
+      if(curSchool) await setDoc(doc(db,'aktionen_'+curAktion.id+'_groups',curSchool.replace(/[^a-z0-9]/gi,'_')),{name:curSchool,created:new Date().toISOString()},{merge:true});
       await batch.commit();
       toast(selectedIds.size+' Code(s) gelöscht');
       toggleSelectMode(false);
@@ -838,6 +840,7 @@ function openAktion(id){
   // Listen to groups collection
   groupsUnsub=onSnapshot(collection(db,'aktionen_'+id+'_groups'),snap=>{
     persistedGroups=snap.docs.map(d=>d.data().name);
+    renderOv(); // re-render when groups update
   });
   codesUnsub=onSnapshot(query(collection(db,'aktionen_'+id),orderBy('created','asc')),snap=>{
     codes=snap.docs.map(d=>({id:d.id,...d.data()}));
@@ -1088,7 +1091,12 @@ document.addEventListener('click',async e=>{
     document.getElementById('cfm-b').innerHTML=`<div class="fg" style="margin-bottom:10px"><label class="fl">Name</label><input class="fi" id="ec-s" type="text" value="${c.school}"></div><div class="fg"><label class="fl">Wert</label><input class="fi" id="ec-w" type="text" value="${c.wert||''}" placeholder="z. B. 50,00 €"></div>`;
     showOv('ov-cfm');
   }
-  if(a==='del-c')cfm('Code löschen?',`<p>Code "<strong>${el.dataset.code}</strong>" wird gelöscht.</p>`,async()=>{await deleteDoc(doc(db,'aktionen_'+curAktion.id,id));toast('Code gelöscht')});
+  if(a==='del-c')cfm('Code löschen?',`<p>Code "<strong>${el.dataset.code}</strong>" wird gelöscht.</p>`,async()=>{
+    await deleteDoc(doc(db,'aktionen_'+curAktion.id,id));
+    // Keep group alive
+    if(curSchool) await setDoc(doc(db,'aktionen_'+curAktion.id+'_groups',curSchool.replace(/[^a-z0-9]/gi,'_')),{name:curSchool,created:new Date().toISOString()},{merge:true});
+    toast('Code gelöscht');
+  });
   if(a==='prt1'){const c=codes.find(x=>x.id===id);if(c)printVouchers([c])}
   const eb=e.target.closest('.ebtn');if(eb&&eb.dataset.eidx!==undefined){selEmoji=EMOJIS[parseInt(eb.dataset.eidx)];renderEG();return}
   const vb=e.target.closest('.vbtn');if(vb&&vb.dataset.vorlage){selVorlage=vb.dataset.vorlage;renderVG();return}
