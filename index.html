@@ -621,11 +621,16 @@ window.openStatistik = async function() {
   const normalTot = normalDocs.length;
   const normalRed = normalDocs.filter(d => d.redeemed).length;
   const normalOpn = normalTot - normalRed;
-  let normalWert = 0;
+  let normalWert = 0, normalOpenWert = 0, normalRedWert = 0;
   normalDocs.forEach(d => {
     const w = parseFloat((d.wert||'0').replace(/[^0-9.,]/g,'').replace(',','.'));
-    if(!isNaN(w)) normalWert += w;
+    if(!isNaN(w)) {
+      normalWert += w;
+      if(d.redeemed) normalRedWert += w; else normalOpenWert += w;
+    }
   });
+  openWert += normalOpenWert;
+  redeemedWert += normalRedWert;
 
   const fmt = (n) => n.toFixed(2).replace('.',',') + ' €';
 
