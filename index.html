@@ -334,6 +334,13 @@ window.goToKategorien = function() {
     s.classList.remove('show');
   });
   document.getElementById('menu').classList.add('show');
+  // Clear scan field
+  var inp = document.getElementById('main-scan-inp');
+  var res = document.getElementById('main-scan-res');
+  var act = document.getElementById('main-scan-act');
+  if(inp) inp.value = '';
+  if(res){ res.style.display='none'; res.innerHTML=''; }
+  if(act) act.style.display = 'none';
 };
 
 document.getElementById("login-btn").addEventListener("click", function() {
@@ -553,7 +560,7 @@ function applyKatNames(){
 }
 applyKatNames();
 
-function clearMainScan(){
+window.clearMainScan = function clearMainScan(){
   const inp=document.getElementById('main-scan-inp');
   const res=document.getElementById('main-scan-res');
   const act=document.getElementById('main-scan-act');
@@ -562,6 +569,7 @@ function clearMainScan(){
   if(act) act.style.display='none';
   mainScanId=null; mainScanAktionId=null;
 }
+function clearMainScan(){ window.clearMainScan(); }
 
 document.getElementById('kat-aktion-card').onclick = function(e) {
   if(e.target.closest('#kat-aktion-edit')) return;
@@ -675,6 +683,13 @@ function goMenu(){
   showScreen('aktionen-menu');
   renderMenu(curKategorie);
 }
+
+// Also clear scan when returning to main menu from aktionen-menu back button
+const origGoToKat = window.goToKategorien;
+window.goToKategorien = function() {
+  clearMainScan();
+  origGoToKat();
+};
 
 document.getElementById('back-btn').onclick=()=>{curSchool?closeDet():goMenu()};
 
