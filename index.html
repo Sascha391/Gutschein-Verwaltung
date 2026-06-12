@@ -604,8 +604,9 @@ window.openStatistik = async function() {
     // Sum values per status
     let wertSum = 0, wertOpen = 0, wertRed = 0;
     docs.forEach(d => {
-      const w = parseFloat((d.wert||'0').replace(/[^0-9.,]/g,'').replace(',','.'));
-      if(!isNaN(w)) {
+      const wStr = (d.wert||'').replace(/[^0-9,\.]/g,'').replace(',','.');
+      const w = wStr ? parseFloat(wStr) : 0;
+      if(w > 0) {
         wertSum += w;
         if(d.redeemed) wertRed += w; else wertOpen += w;
       }
@@ -623,8 +624,9 @@ window.openStatistik = async function() {
   const normalOpn = normalTot - normalRed;
   let normalWert = 0, normalOpenWert = 0, normalRedWert = 0;
   normalDocs.forEach(d => {
-    const w = parseFloat((d.wert||'0').replace(/[^0-9.,]/g,'').replace(',','.'));
-    if(!isNaN(w)) {
+    const wStr = (d.wert||'').replace(/[^0-9,\.]/g,'').replace(',','.');
+    const w = wStr ? parseFloat(wStr) : 0;
+    if(w > 0) {
       normalWert += w;
       if(d.redeemed) normalRedWert += w; else normalOpenWert += w;
     }
