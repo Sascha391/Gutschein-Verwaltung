@@ -525,7 +525,8 @@ function renderMenu(kat){
   if(!filtered.length){el.innerHTML='<div class="empty"><div class="ei">🎟</div>Noch keine Aktionen</div>';return}
   el.innerHTML=filtered.map((a,i)=>{
     const bg=['rgba(108,99,255,.18)','rgba(34,197,94,.15)','rgba(251,146,60,.15)','rgba(236,72,153,.15)','rgba(14,165,233,.15)'][i%5];
-    return `<div class="acard" style="transition:transform .1s,opacity .1s" onmousedown="this.style.transform='scale(.98)';this.style.opacity='.8'" onmouseup="this.style.transform='';this.style.opacity=''" ontouchstart="this.style.transform='scale(.98)';this.style.opacity='.8'" ontouchend="this.style.transform='';this.style.opacity=''"><div class="aico" style="background:${bg}" data-act="open-a" data-id="${a.id}">${a.emoji||'🎁'}</div><div style="flex:1;cursor:pointer" data-act="open-a" data-id="${a.id}"><div class="aname">${a.name}</div></div><div style="display:flex;gap:8px"><button class="bsm b-edt" data-act="edit-a" data-id="${a.id}" style="font-size:18px;padding:9px 12px">✏️</button><button class="bsm b-del" data-act="del-a" data-id="${a.id}" data-name="${a.name}" style="font-size:18px;padding:9px 12px">🗑</button></div></div>`;
+    const esc=a.name.replace(/'/g,"\\'");
+    return `<div class="acard" style="transition:transform .1s,opacity .1s" onmousedown="this.style.transform='scale(.98)';this.style.opacity='.8'" onmouseup="this.style.transform='';this.style.opacity=''" ontouchstart="this.style.transform='scale(.98)';this.style.opacity='.8'" ontouchend="this.style.transform='';this.style.opacity=''"><div class="aico" style="background:${bg};cursor:pointer" onclick="window._openAktion('${a.id}')">${a.emoji||'🎁'}</div><div style="flex:1;cursor:pointer" onclick="window._openAktion('${a.id}')"><div class="aname">${a.name}</div></div><div style="display:flex;gap:8px"><button class="bsm b-edt" onclick="event.stopPropagation();window._editAktion('${a.id}')" style="font-size:18px;padding:9px 12px">✏️</button><button class="bsm b-del" onclick="event.stopPropagation();window._delAktion('${a.id}','${esc}')" style="font-size:18px;padding:9px 12px">🗑</button></div></div>`;
   }).join('');
 }
 
@@ -904,6 +905,22 @@ function openAktion(id){
 }
 
 window._openGrp = function(school){ openGrpSmart(school); };
+window._openAktion = function(id){ openAktion(id); };
+window._editAktion = function(id){
+  const ak=aktionen.find(x=>x.id===id);
+  if(!ak)return;
+  editAktionId=id;selEmoji=ak.emoji||'🎁';selVorlage=ak.vorlage||'fotoriede';
+  document.getElementById('oa-name').value=ak.name;
+  document.getElementById('ov-aktion-title').textContent='Aktion bearbeiten';
+  document.getElementById('oa-save').textContent='Speichern';
+  renderEG();renderVG();showOv('ov-aktion');
+};
+window._delAktion = function(id, name){
+  cfm('Aktion löschen?',`<p>"<strong>${name}</strong>" wird gelöscht.</p>`,async()=>{
+    await deleteDoc(doc(db,'aktionen_meta',id));
+    toast('Gelöscht');renderMenu(curKategorie);
+  });
+};
 
 // Download select mode
 let dlSelectMode=false;
