@@ -124,6 +124,17 @@ hr{border:none;border-top:1px solid var(--brd);margin:18px 0}
     <div><h1>Gutschein Verwaltung</h1><p id="menu-date"></p></div>
   </div>
   <div class="mc">
+    <div class="lbl">Code einlösen</div>
+    <div style="background:var(--surf);border:1px solid var(--brd);border-radius:var(--r);padding:16px;margin-bottom:20px">
+      <div style="display:flex;gap:10px">
+        <input class="fi" id="main-scan-inp" type="text" placeholder="Gutschein-Code eingeben…" autocapitalize="characters" autocomplete="off" style="flex:1;text-transform:uppercase">
+        <button class="btn btn-a" id="main-scan-btn" style="width:auto;padding:12px 18px;margin-top:0">Prüfen</button>
+      </div>
+      <div id="main-scan-res" style="display:none;margin-top:12px;padding:13px;border-radius:var(--rs)"></div>
+      <div id="main-scan-act" style="display:none;margin-top:10px">
+        <button class="btn btn-a" id="main-redeem-btn">✓ Jetzt einlösen</button>
+      </div>
+    </div>
     <div class="lbl">Kategorien</div>
     <div class="acard" style="cursor:pointer" id="kat-aktion-card">
       <div class="ainf" id="kat-aktion" style="flex:1">
@@ -347,7 +358,7 @@ document.getElementById("pin-inp").addEventListener("keydown", function(e) {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, onSnapshot, updateDoc, deleteDoc, doc, writeBatch, query, orderBy, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, onSnapshot, updateDoc, deleteDoc, doc, writeBatch, query, orderBy, setDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const FB = {apiKey:"AIzaSyC7XtHV9QN-UpgGxuD9rjTPEVgCtL4nm5M",authDomain:"passbild-fahrschulen.firebaseapp.com",projectId:"passbild-fahrschulen",storageBucket:"passbild-fahrschulen.firebasestorage.app",messagingSenderId:"783673203873",appId:"1:783673203873:web:72e7a72aca94dad9df64e0"};
 const app = initializeApp(FB);
@@ -367,6 +378,79 @@ function setSy(s){const e=document.getElementById('live');e.textContent=s?'↻ S
 
 // Expose initMenu for login script  
 window._initMenu = function() { initMenu(); };
+
+// Main page scan - search across all aktionen
+let mainScanId = null;
+let mainScanAktionId = null;
+
+async function mainScanCode(val) {
+  const res = document.getElementById('main-scan-res');
+  const act = document.getElementById('main-scan-act');
+  mainScanId = null; mainScanAktionId = null;
+  res.style.display = 'none'; act.style.display = 'none';
+  if(!val) { toast('Bitte Code eingeben'); return; }
+  val = val.toUpperCase().trim();
+  res.style.display = 'block';
+  res.style.cssText = 'display:block;margin-top:12px;padding:13px;border-radius:var(--rs);background:rgba(108,99,255,.1);border:1px solid rgba(108,99,255,.3)';
+  res.innerHTML = '<div style="font-size:13px;color:var(--txt2)">⏳ Suche läuft...</div>';
+
+  // Search in all aktionen
+  let found = null;
+  let foundAktionId = null;
+  for(const aktion of aktionen) {
+    try {
+      const snap = await getDocs(query(collection(db, 'aktionen_'+aktion.id)));
+      const match = snap.docs.find(d => d.data().code === val);
+      if(match) { found = {id: match.id, ...match.data()}; foundAktionId = aktion.id; break; }
+    } catch(e) {}
+  }
+
+  // Also search normal_gutscheine
+  if(!found) {
+    try {
+      const snap = await getDocs(query(collection(db, 'normal_gutscheine')));
+      const match = snap.docs.find(d => d.data().code === val);
+      if(match) { found = {id: match.id, ...match.data()}; foundAktionId = '__normal'; }
+    } catch(e) {}
+  }
+
+  if(!found) {
+    res.style.cssText = 'display:block;margin-top:12px;padding:13px;border-radius:var(--rs);background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25)';
+    res.innerHTML = '<div style="font-size:15px;font-weight:600;color:var(--red)">❌ Code nicht gefunden</div><div style="font-size:13px;color:var(--txt2);margin-top:4px">Dieser Code existiert in keiner Aktion.</div>';
+    return;
+  }
+
+  mainScanId = found.id;
+  mainScanAktionId = foundAktionId;
+
+  if(found.redeemed) {
+    res.style.cssText = 'display:block;margin-top:12px;padding:13px;border-radius:var(--rs);background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25)';
+    res.innerHTML = `<div style="font-size:15px;font-weight:600;color:var(--red)">⚠️ Bereits eingelöst</div><div style="font-size:13px;color:var(--txt2);margin-top:4px">${found.school||found.fuer||'–'} · ${found.date||found.redeemedDate||''}</div>`;
+    act.style.display = 'none';
+  } else {
+    res.style.cssText = 'display:block;margin-top:12px;padding:13px;border-radius:var(--rs);background:rgba(108,99,255,.12);border:1px solid rgba(108,99,255,.3)';
+    res.innerHTML = `<div style="font-size:15px;font-weight:600;color:var(--acc2)">✓ Gültiger Gutschein</div><div style="font-size:13px;color:var(--txt2);margin-top:4px">${found.school||found.fuer||'–'}${found.wert?' · '+found.wert:''}</div>`;
+    act.style.display = 'block';
+  }
+}
+
+document.getElementById('main-scan-btn').addEventListener('click', ()=>{
+  mainScanCode(document.getElementById('main-scan-inp').value);
+});
+document.getElementById('main-scan-inp').addEventListener('keydown', e=>{
+  if(e.key==='Enter') mainScanCode(document.getElementById('main-scan-inp').value);
+});
+document.getElementById('main-redeem-btn').addEventListener('click', async ()=>{
+  if(!mainScanId||!mainScanAktionId) return;
+  const col = mainScanAktionId==='__normal' ? 'normal_gutscheine' : 'aktionen_'+mainScanAktionId;
+  await updateDoc(doc(db, col, mainScanId), {redeemed:true, date:new Date().toLocaleDateString('de-DE')});
+  document.getElementById('main-scan-res').style.cssText = 'display:block;margin-top:12px;padding:13px;border-radius:var(--rs);background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3)';
+  document.getElementById('main-scan-res').innerHTML = '<div style="font-size:15px;font-weight:600;color:var(--grn)">✅ Erfolgreich eingelöst!</div>';
+  document.getElementById('main-scan-act').style.display='none';
+  document.getElementById('main-scan-inp').value='';
+  mainScanId=null; mainScanAktionId=null;
+  toast('Gutschein eingelöst ✓');
+});
 
 // Normal-Gutscheine
 let normalUnsub = null;
