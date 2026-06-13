@@ -441,10 +441,10 @@ function mainScanRenderResult(found, foundAktionId) {
   const act = document.getElementById('main-scan-act');
   if(!found) {
     res.style.display = 'block';
-    res.innerHTML = `<div style="padding:18px 16px;background:rgba(248,113,113,.1);border:1.5px solid rgba(248,113,113,.4);border-radius:var(--r);text-align:center">
+    res.innerHTML = `<div style="padding:18px 16px;background:rgba(248,113,113,.1);border:1.5px solid rgba(248,113,113,.5);border-radius:var(--r);text-align:center">
       <div style="font-size:30px;margin-bottom:6px">❌</div>
-      <div style="font-size:15px;font-weight:600;color:var(--red)">Code nicht gefunden</div>
-      <div style="font-size:12px;color:var(--txt2);margin-top:4px">Tippfehler? Code nochmal prüfen.</div>
+      <div style="font-size:16px;font-weight:700;color:var(--txt)">Code nicht gefunden</div>
+      <div style="font-size:13px;color:var(--txt2);margin-top:4px">Tippfehler? Code nochmal prüfen.</div>
     </div>`;
     act.style.display = 'none';
     return;
@@ -456,20 +456,20 @@ function mainScanRenderResult(found, foundAktionId) {
   const aktionName = foundAktionId === '__normal' ? 'Normal-Gutschein' : (aktionen.find(a=>a.id===foundAktionId)||{}).name||'Aktion';
   if(found.redeemed) {
     res.style.display = 'block';
-    res.innerHTML = `<div style="padding:18px 16px;background:rgba(245,158,11,.1);border:1.5px solid rgba(245,158,11,.4);border-radius:var(--r);text-align:center">
+    res.innerHTML = `<div style="padding:18px 16px;background:rgba(245,158,11,.1);border:1.5px solid rgba(245,158,11,.5);border-radius:var(--r);text-align:center">
       <div style="font-size:30px;margin-bottom:6px">⚠️</div>
-      <div style="font-size:15px;font-weight:600;color:#b45309">Bereits eingelöst</div>
-      <div style="font-size:12px;color:var(--txt2);margin-top:4px">${name}${found.date||found.redeemedDate ? ' · '+(found.date||found.redeemedDate) : ''}</div>
+      <div style="font-size:16px;font-weight:700;color:var(--txt)">Bereits eingelöst</div>
+      <div style="font-size:13px;color:var(--txt2);margin-top:4px">${name}${found.date||found.redeemedDate ? ' · '+(found.date||found.redeemedDate) : ''}</div>
     </div>`;
     act.style.display = 'none';
   } else {
     const pills = [name, wert, aktionName].filter(Boolean);
     res.style.display = 'block';
-    res.innerHTML = `<div style="padding:18px 16px;background:rgba(34,197,94,.08);border:1.5px solid rgba(34,197,94,.4);border-radius:var(--r);text-align:center">
+    res.innerHTML = `<div style="padding:18px 16px;background:rgba(34,197,94,.08);border:1.5px solid rgba(34,197,94,.5);border-radius:var(--r);text-align:center">
       <div style="font-size:30px;margin-bottom:6px">✅</div>
-      <div style="font-size:15px;font-weight:600;color:#166534">Gültiger Gutschein</div>
-      <div style="font-size:12px;color:#166534;opacity:.8;margin-top:3px">Bereit zur Einlösung</div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:10px">${pills.map(p=>`<span style="background:rgba(34,197,94,.15);border-radius:99px;padding:4px 12px;font-size:12px;color:#166534;font-weight:500">${p}</span>`).join('')}</div>
+      <div style="font-size:16px;font-weight:700;color:var(--txt)">Gültiger Gutschein</div>
+      <div style="font-size:13px;color:var(--txt2);margin-top:3px">Bereit zur Einlösung</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:10px">${pills.map(p=>`<span style="background:rgba(34,197,94,.25);border:1px solid rgba(34,197,94,.5);border-radius:99px;padding:5px 14px;font-size:13px;color:var(--txt);font-weight:500">${p}</span>`).join('')}</div>
     </div>`;
     act.style.display = 'block';
   }
