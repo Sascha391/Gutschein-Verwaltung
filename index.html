@@ -958,7 +958,7 @@ function openGrpSmart(school){
     document.getElementById('cr-school').value=school;
     document.getElementById('back-btn').style.display='block';
     document.getElementById('hdr-title').textContent=school;
-    showTab('cr');
+    showTab('cr', true);
     toast('Gruppe ist leer – neue Codes erstellen');
   } else {
     openGrp(school);
@@ -974,11 +974,16 @@ function closeDet(){
   showTab('ov');
 }
 
-function showTab(name){
+function showTab(name, keepCreateFields){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
   const pg=document.getElementById('p-'+name);if(pg)pg.classList.add('on');
   const tb=document.querySelector('.tab[data-tab="'+name+'"]');if(tb)tb.classList.add('on');
+  if(name==='cr'&&!keepCreateFields){
+    document.getElementById('cr-school').value='';
+    document.getElementById('cr-wert').value='';
+    document.getElementById('cr-count').value='1';
+  }
   if(name!=='det'){curSchool='';if(name!=='ov'&&name!=='cr'&&name!=='sc'&&name!=='li')document.getElementById('back-btn').style.display='none';else document.getElementById('back-btn').style.display='block';document.getElementById('hdr-title').textContent=curAktion?curAktion.name:'Gutscheine'}
 }
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>showTab(t.dataset.tab));
@@ -1139,7 +1144,7 @@ document.getElementById('det-print').onclick=()=>printVouchers(codes.filter(c=>c
 document.getElementById('det-add').onclick=()=>{
   document.getElementById('cr-school').value=curSchool;
   document.getElementById('cr-wert').value=codes.find(c=>c.school===curSchool)?.wert||'';
-  showTab('cr');
+  showTab('cr', true);
   document.getElementById('cr-count').focus();
 };
 document.getElementById('det-dl').onclick=()=>{if(curSchool)showOv('ov-dl')};
@@ -1510,7 +1515,7 @@ document.addEventListener('click',async e=>{
     const schools=[...new Set(codes.map(c=>c.school))];
     const idx=parseInt(el.dataset.idx||'0');
     document.getElementById('cr-school').value=schools[idx]||'';
-    showTab('cr');
+    showTab('cr', true);
   }
   if(a==='tog'){const nv=el.dataset.r!=='true';await updateDoc(doc(db,'aktionen_'+curAktion.id,id),{redeemed:nv,date:nv?new Date().toLocaleDateString('de-DE'):null});toast(nv?'Eingelöst ✓':'Zurückgesetzt')}
   if(a==='edit-c'){
