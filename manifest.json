@@ -1,12 +1,12 @@
 {
-  "name": "Passbild Gutscheine",
-  "short_name": "Passbild",
-  "description": "Gutschein-Verwaltung für Fahrschüler-Passbilder",
-  "start_url": "/",
+  "name": "Gutschein Verwaltung",
+  "short_name": "Gutscheine",
+  "description": "Gutschein-Verwaltung – Foto Riede",
+  "start_url": "/Gutschein-Verwaltung/",
   "display": "standalone",
   "background_color": "#0f0f1a",
   "theme_color": "#1a1a2e",
-  "orientation": "portrait",
+  "orientation": "any",
   "icons": [
     {
       "src": "icons/icon-192.png",
@@ -21,5 +21,8 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["business", "productivity"]
+  "categories": [
+    "business",
+    "productivity"
+  ]
 }
