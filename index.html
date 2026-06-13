@@ -1102,7 +1102,9 @@ document.getElementById('sc-redeem').onclick=async()=>{
 function printVouchers(list){
   if(!list.length){toast('Keine Codes');return}
   const vorlage=(curAktion&&curAktion.vorlage)||'fotoriede';
-  const abl=new Date();abl.setFullYear(abl.getFullYear()+1);
+  const _now=new Date();
+  const _m=_now.getMonth()+6;
+  const abl=new Date(_now.getFullYear()+Math.floor(_m/12), _m%12+1, 0);
   const ablStr=abl.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
 
   if(vorlage==='fotoriede'){
@@ -1348,7 +1350,9 @@ window._toggleDlSel = function(id){
 
 function dlJPEGsList(list){
   if(!list.length){toast('Keine Codes');return}
-  const abl=new Date();abl.setFullYear(abl.getFullYear()+1);
+  const _now=new Date();
+  const _m=_now.getMonth()+6;
+  const abl=new Date(_now.getFullYear()+Math.floor(_m/12), _m%12+1, 0);
   const ablStr=abl.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
   toast('JPEGs werden erstellt...');
 
