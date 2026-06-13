@@ -146,19 +146,27 @@ hr{border:none;border-top:1px solid var(--brd);margin:18px 0}
       </div>
     </div>
     <div class="lbl">Kategorien</div>
-    <div class="acard" style="cursor:pointer" id="kat-aktion-card">
-      <div class="ainf" id="kat-aktion" style="flex:1">
-        <div class="aname" style="font-size:18px" id="kat-aktion-name">Aktions-Gutscheine</div>
+    <div class="acard" style="cursor:pointer;display:block;padding:15px" id="kat-aktion-card">
+      <div style="display:flex;align-items:center;gap:13px;margin-bottom:8px">
+        <div style="flex:1">
+          <div class="aname" style="font-size:18px" id="kat-aktion-name">Aktions-Gutscheine</div>
+          <div id="kat-aktion-sub" style="font-size:12px;color:var(--txt3);margin-top:3px"> </div>
+        </div>
+        <button id="kat-aktion-edit" style="background:rgba(108,99,255,.12);border:none;color:var(--acc2);border-radius:var(--rs);padding:8px 12px;font-size:16px;cursor:pointer;flex-shrink:0">✏️</button>
+        <div class="aarr">›</div>
       </div>
-      <button id="kat-aktion-edit" style="background:rgba(108,99,255,.12);border:none;color:var(--acc2);border-radius:var(--rs);padding:8px 12px;font-size:16px;cursor:pointer;flex-shrink:0;margin-right:8px">✏️</button>
-      <div class="aarr">›</div>
+      <div style="height:3px;background:var(--brd);border-radius:99px"><div id="kat-aktion-bar" style="height:3px;width:0%;background:var(--acc2);border-radius:99px;transition:width .4s"></div></div>
     </div>
-    <div class="acard" style="cursor:pointer" id="kat-normal-card">
-      <div class="ainf" id="kat-normal" style="flex:1">
-        <div class="aname" style="font-size:18px" id="kat-normal-name">Normal-Gutscheine</div>
+    <div class="acard" style="cursor:pointer;display:block;padding:15px" id="kat-normal-card">
+      <div style="display:flex;align-items:center;gap:13px;margin-bottom:8px">
+        <div style="flex:1">
+          <div class="aname" style="font-size:18px" id="kat-normal-name">Normal-Gutscheine</div>
+          <div id="kat-normal-sub" style="font-size:12px;color:var(--txt3);margin-top:3px"> </div>
+        </div>
+        <button id="kat-normal-edit" style="background:rgba(108,99,255,.12);border:none;color:var(--acc2);border-radius:var(--rs);padding:8px 12px;font-size:16px;cursor:pointer;flex-shrink:0">✏️</button>
+        <div class="aarr">›</div>
       </div>
-      <button id="kat-normal-edit" style="background:rgba(108,99,255,.12);border:none;color:var(--acc2);border-radius:var(--rs);padding:8px 12px;font-size:16px;cursor:pointer;flex-shrink:0;margin-right:8px">✏️</button>
-      <div class="aarr">›</div>
+      <div style="height:3px;background:var(--brd);border-radius:99px"><div id="kat-normal-bar" style="height:3px;width:0%;background:var(--grn);border-radius:99px;transition:width .4s"></div></div>
     </div>
   </div>
 </div>
@@ -545,6 +553,7 @@ window.openNormalGutscheine = function() {
   normalUnsub = ons(qry(col(window._db, 'normal_gutscheine'), ord('created','desc')), snap => {
     normalCodes = snap.docs.map(d => ({id: d.id, ...d.data()}));
     renderNormalList();
+    if(typeof updateKatCards==='function')updateKatCards();
   });
 };
 
@@ -864,6 +873,7 @@ function initMenu(){
   if(aktUnsub)aktUnsub();
   aktUnsub=onSnapshot(query(collection(db,'aktionen_meta'),orderBy('order','asc')),snap=>{
     aktionen=snap.docs.map(d=>d.data());
+    if(typeof updateKatCards==='function')updateKatCards();
   },err=>{console.error(err);toast('Firebase Fehler: '+err.message)});
 }
 
@@ -882,6 +892,29 @@ function renderMenu(kat){
     return `<div class="acard" style="transition:transform .1s,opacity .1s" onmousedown="this.style.transform='scale(.98)';this.style.opacity='.8'" onmouseup="this.style.transform='';this.style.opacity=''" ontouchstart="this.style.transform='scale(.98)';this.style.opacity='.8'" ontouchend="this.style.transform='';this.style.opacity=''"><div class="aico" style="background:${bg};cursor:pointer" onclick="window._openAktion('${a.id}')">${a.emoji||'🎁'}</div><div style="flex:1;cursor:pointer" onclick="window._openAktion('${a.id}')"><div class="aname">${a.name}</div></div><div style="display:flex;gap:8px"><button class="bsm b-edt" onclick="event.stopPropagation();window._editAktion('${a.id}')" style="font-size:18px;padding:9px 12px">✏️</button><button class="bsm b-del" onclick="event.stopPropagation();window._delAktion('${a.id}','${esc}')" style="font-size:18px;padding:9px 12px">🗑</button></div></div>`;
   }).join('');
 }
+
+function updateKatCards(){
+  try {
+    const nSub=document.getElementById('kat-normal-sub');
+    const nBar=document.getElementById('kat-normal-bar');
+    if(nSub&&typeof normalCodes!=='undefined'){
+      const nTot=normalCodes.length,nDon=normalCodes.filter(c=>c.redeemed).length;
+      const nPct=nTot?Math.round(nDon/nTot*100):0;
+      nSub.textContent=nTot?(nTot-nDon)+' offen · '+nDon+' eingelöst':'Noch keine Gutscheine';
+      if(nBar)nBar.style.width=nPct+'%';
+    }
+    const aSub=document.getElementById('kat-aktion-sub');
+    const aBar=document.getElementById('kat-aktion-bar');
+    if(aSub&&typeof aktionen!=='undefined'){
+      const aAnz=aktionen.filter(a=>(a.kategorie||'aktion')==='aktion').length;
+      const nAnz=aktionen.filter(a=>a.kategorie==='normal').length;
+      aSub.textContent=aAnz?(aAnz+' Aktion'+(aAnz!==1?'en':'')):'Noch keine Aktionen';
+      if(aBar)aBar.style.width='0%';
+      const naSub=document.getElementById('kat-aktion-sub');
+    }
+  } catch(e){}
+}
+
 
 document.getElementById('add-aktion-btn').onclick=()=>{
   editAktionId=null;selEmoji='🎁';selVorlage='fotoriede';
@@ -1008,7 +1041,7 @@ function renderOv(){
     const ini=n.replace(/fahrschule\s*/i,'').trim().substring(0,2).toUpperCase();
     const pct=s.t?Math.round(s.d/s.t*100):0;
     const esc=n.replace(/'/g,"\\'");
-    return `<div class="scard"><div class="savt" onclick="window._openGrp('${esc}')" style="cursor:pointer">${ini}</div><div style="flex:1;min-width:0;cursor:pointer" onclick="window._openGrp('${esc}')"><div class="sname">${n}</div><div class="smeta">${s.t-s.d} offen · ${s.d} eingelöst · ${s.t} gesamt</div><div class="pbar"><div class="pbar-f" style="width:${pct}%"></div></div></div><div style="display:flex;gap:6px;flex-shrink:0"><button class="bsm b-edt" onclick="window._editGrp('${esc}')" style="font-size:16px;padding:8px 11px">✏️</button><button class="bsm b-del" onclick="window._delGrp('${esc}')" style="font-size:16px;padding:8px 11px">🗑</button></div></div>`;
+    return `<div class="scard" style="display:block;padding:13px 14px"><div style="display:flex;align-items:center;gap:11px;margin-bottom:8px"><div class="savt" onclick="window._openGrp('${esc}')" style="cursor:pointer">${ini}</div><div style="flex:1;min-width:0;cursor:pointer" onclick="window._openGrp('${esc}')"><div class="sname">${n}</div><div style="display:flex;gap:5px;margin-top:5px;flex-wrap:wrap"><span style="background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);border-radius:99px;padding:2px 9px;font-size:11px;color:var(--grn);font-weight:500">${s.t-s.d} offen</span>${s.d>0?`<span style="background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.25);border-radius:99px;padding:2px 9px;font-size:11px;color:var(--red);font-weight:500">${s.d} eingelöst</span>`:''}</div></div><div style="display:flex;gap:6px;flex-shrink:0"><button class="bsm b-edt" onclick="window._editGrp('${esc}')" style="font-size:16px;padding:8px 11px">✏️</button><button class="bsm b-del" onclick="window._delGrp('${esc}')" style="font-size:16px;padding:8px 11px">🗑</button></div></div><div class="pbar"><div class="pbar-f" style="width:${pct}%"></div></div></div>`;
   }).join('');
 }
 window.renderDet = function renderDet(){
