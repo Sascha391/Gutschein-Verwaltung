@@ -135,13 +135,14 @@ hr{border:none;border-top:1px solid var(--brd);margin:18px 0}
     </button>
     <div class="lbl">Code einlösen</div>
     <div style="background:var(--surf);border:1px solid var(--brd);border-radius:var(--r);padding:16px;margin-bottom:20px">
-      <div style="display:flex;gap:10px">
-        <input class="fi" id="main-scan-inp" type="text" placeholder="Gutschein-Code eingeben…" autocapitalize="characters" autocomplete="off" style="flex:1;text-transform:uppercase">
-        <button class="btn btn-a" id="main-scan-btn" style="width:auto;padding:12px 18px;margin-top:0">Prüfen</button>
+      <div style="position:relative">
+        <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:18px;pointer-events:none">🔍</span>
+        <input class="fi" id="main-scan-inp" type="text" placeholder="Gutschein-Code eingeben…" autocapitalize="characters" autocomplete="off" style="width:100%;box-sizing:border-box;text-transform:uppercase;padding-left:42px;padding-right:42px;font-size:15px;font-weight:500;letter-spacing:0.05em">
+        <button id="main-scan-clear" onclick="document.getElementById('main-scan-inp').value='';document.getElementById('main-scan-res').style.display='none';document.getElementById('main-scan-act').style.display='none';document.getElementById('main-scan-inp').focus()" style="display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:18px;cursor:pointer;color:var(--txt2);padding:0;line-height:1">✕</button>
       </div>
-      <div id="main-scan-res" style="display:none;margin-top:12px;padding:13px;border-radius:var(--rs)"></div>
-      <div id="main-scan-act" style="display:none;margin-top:10px">
-        <button class="btn btn-a" id="main-redeem-btn">✓ Jetzt einlösen</button>
+      <div id="main-scan-res" style="display:none;margin-top:12px;border-radius:var(--r);overflow:hidden"></div>
+      <div id="main-scan-act" style="display:none;margin-top:8px">
+        <button class="btn btn-a" id="main-redeem-btn" style="background:var(--grn);border-color:var(--grn);font-size:15px;padding:14px">✓ Jetzt einlösen</button>
       </div>
     </div>
     <div class="lbl">Kategorien</div>
@@ -435,6 +436,45 @@ window._initMenu = function() { initMenu(); };
 let mainScanId = null;
 let mainScanAktionId = null;
 
+function mainScanRenderResult(found, foundAktionId) {
+  const res = document.getElementById('main-scan-res');
+  const act = document.getElementById('main-scan-act');
+  if(!found) {
+    res.style.display = 'block';
+    res.innerHTML = `<div style="padding:18px 16px;background:rgba(248,113,113,.1);border:1.5px solid rgba(248,113,113,.4);border-radius:var(--r);text-align:center">
+      <div style="font-size:30px;margin-bottom:6px">❌</div>
+      <div style="font-size:15px;font-weight:600;color:var(--red)">Code nicht gefunden</div>
+      <div style="font-size:12px;color:var(--txt2);margin-top:4px">Tippfehler? Code nochmal prüfen.</div>
+    </div>`;
+    act.style.display = 'none';
+    return;
+  }
+  mainScanId = found.id;
+  mainScanAktionId = foundAktionId;
+  const name = found.school||found.fuer||'–';
+  const wert = found.wert ? found.wert : '';
+  const aktionName = foundAktionId === '__normal' ? 'Normal-Gutschein' : (aktionen.find(a=>a.id===foundAktionId)||{}).name||'Aktion';
+  if(found.redeemed) {
+    res.style.display = 'block';
+    res.innerHTML = `<div style="padding:18px 16px;background:rgba(245,158,11,.1);border:1.5px solid rgba(245,158,11,.4);border-radius:var(--r);text-align:center">
+      <div style="font-size:30px;margin-bottom:6px">⚠️</div>
+      <div style="font-size:15px;font-weight:600;color:#b45309">Bereits eingelöst</div>
+      <div style="font-size:12px;color:var(--txt2);margin-top:4px">${name}${found.date||found.redeemedDate ? ' · '+(found.date||found.redeemedDate) : ''}</div>
+    </div>`;
+    act.style.display = 'none';
+  } else {
+    const pills = [name, wert, aktionName].filter(Boolean);
+    res.style.display = 'block';
+    res.innerHTML = `<div style="padding:18px 16px;background:rgba(34,197,94,.08);border:1.5px solid rgba(34,197,94,.4);border-radius:var(--r);text-align:center">
+      <div style="font-size:30px;margin-bottom:6px">✅</div>
+      <div style="font-size:15px;font-weight:600;color:#166534">Gültiger Gutschein</div>
+      <div style="font-size:12px;color:#166534;opacity:.8;margin-top:3px">Bereit zur Einlösung</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:10px">${pills.map(p=>`<span style="background:rgba(34,197,94,.15);border-radius:99px;padding:4px 12px;font-size:12px;color:#166534;font-weight:500">${p}</span>`).join('')}</div>
+    </div>`;
+    act.style.display = 'block';
+  }
+}
+
 async function mainScanCode(val) {
   const res = document.getElementById('main-scan-res');
   const act = document.getElementById('main-scan-act');
@@ -443,10 +483,8 @@ async function mainScanCode(val) {
   if(!val) { toast('Bitte Code eingeben'); return; }
   val = val.toUpperCase().trim();
   res.style.display = 'block';
-  res.style.cssText = 'display:block;margin-top:12px;padding:13px;border-radius:var(--rs);background:rgba(108,99,255,.1);border:1px solid rgba(108,99,255,.3)';
-  res.innerHTML = '<div style="font-size:13px;color:var(--txt2)">⏳ Suche läuft...</div>';
+  res.innerHTML = `<div style="padding:16px;text-align:center;color:var(--txt2);font-size:13px">⏳ Suche läuft…</div>`;
 
-  // Search in all aktionen
   let found = null;
   let foundAktionId = null;
   for(const aktion of aktionen) {
@@ -456,8 +494,6 @@ async function mainScanCode(val) {
       if(match) { found = {id: match.id, ...match.data()}; foundAktionId = aktion.id; break; }
     } catch(e) {}
   }
-
-  // Also search normal_gutscheine
   if(!found) {
     try {
       const snap = await getDocs(query(collection(db, 'normal_gutscheine')));
@@ -465,29 +501,11 @@ async function mainScanCode(val) {
       if(match) { found = {id: match.id, ...match.data()}; foundAktionId = '__normal'; }
     } catch(e) {}
   }
-
-  if(!found) {
-    res.style.cssText = 'display:block;margin-top:12px;padding:13px;border-radius:var(--rs);background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25)';
-    res.innerHTML = '<div style="font-size:15px;font-weight:600;color:var(--red)">❌ Code nicht gefunden</div><div style="font-size:13px;color:var(--txt2);margin-top:4px">Dieser Code existiert in keiner Aktion.</div>';
-    return;
-  }
-
-  mainScanId = found.id;
-  mainScanAktionId = foundAktionId;
-
-  if(found.redeemed) {
-    res.style.cssText = 'display:block;margin-top:12px;padding:13px;border-radius:var(--rs);background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25)';
-    res.innerHTML = `<div style="font-size:15px;font-weight:600;color:var(--red)">⚠️ Bereits eingelöst</div><div style="font-size:13px;color:var(--txt2);margin-top:4px">${found.school||found.fuer||'–'} · ${found.date||found.redeemedDate||''}</div>`;
-    act.style.display = 'none';
-  } else {
-    res.style.cssText = 'display:block;margin-top:12px;padding:13px;border-radius:var(--rs);background:rgba(108,99,255,.12);border:1px solid rgba(108,99,255,.3)';
-    res.innerHTML = `<div style="font-size:15px;font-weight:600;color:var(--acc2)">✓ Gültiger Gutschein</div><div style="font-size:13px;color:var(--txt2);margin-top:4px">${found.school||found.fuer||'–'}${found.wert?' · '+found.wert:''}</div>`;
-    act.style.display = 'block';
-  }
+  mainScanRenderResult(found, foundAktionId);
 }
 
-document.getElementById('main-scan-btn').addEventListener('click', ()=>{
-  mainScanCode(document.getElementById('main-scan-inp').value);
+document.getElementById('main-scan-inp').addEventListener('input', function() {
+  document.getElementById('main-scan-clear').style.display = this.value ? 'block' : 'none';
 });
 document.getElementById('main-scan-inp').addEventListener('keydown', e=>{
   if(e.key==='Enter') mainScanCode(document.getElementById('main-scan-inp').value);
@@ -496,12 +514,18 @@ document.getElementById('main-redeem-btn').addEventListener('click', async ()=>{
   if(!mainScanId||!mainScanAktionId) return;
   const col = mainScanAktionId==='__normal' ? 'normal_gutscheine' : 'aktionen_'+mainScanAktionId;
   await updateDoc(doc(db, col, mainScanId), {redeemed:true, date:new Date().toLocaleDateString('de-DE')});
-  document.getElementById('main-scan-res').style.cssText = 'display:block;margin-top:12px;padding:13px;border-radius:var(--rs);background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3)';
-  document.getElementById('main-scan-res').innerHTML = '<div style="font-size:15px;font-weight:600;color:var(--grn)">✅ Erfolgreich eingelöst!</div>';
+  const res = document.getElementById('main-scan-res');
+  res.style.display = 'block';
+  res.innerHTML = `<div style="padding:18px 16px;background:rgba(108,99,255,.1);border:1.5px solid rgba(108,99,255,.3);border-radius:var(--r);text-align:center">
+    <div style="font-size:34px;margin-bottom:6px">🎉</div>
+    <div style="font-size:16px;font-weight:600;color:var(--acc2)">Erfolgreich eingelöst!</div>
+  </div>`;
   document.getElementById('main-scan-act').style.display='none';
   document.getElementById('main-scan-inp').value='';
+  document.getElementById('main-scan-clear').style.display='none';
   mainScanId=null; mainScanAktionId=null;
   toast('Gutschein eingelöst ✓');
+  if(navigator.vibrate) navigator.vibrate(100);
 });
 
 // Normal-Gutscheine
@@ -787,9 +811,11 @@ window.clearMainScan = function clearMainScan(){
   const inp=document.getElementById('main-scan-inp');
   const res=document.getElementById('main-scan-res');
   const act=document.getElementById('main-scan-act');
+  const clr=document.getElementById('main-scan-clear');
   if(inp) inp.value='';
   if(res){ res.style.display='none'; res.innerHTML=''; }
   if(act) act.style.display='none';
+  if(clr) clr.style.display='none';
   mainScanId=null; mainScanAktionId=null;
 }
 function clearMainScan(){ window.clearMainScan(); }
