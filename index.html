@@ -1152,10 +1152,11 @@ function printVouchers(list){
         ctx.font='500 46px Arial,sans-serif';
         ctx.fillStyle='#141414';
         ctx.textBaseline='middle';
-        ctx.fillText(c.school||'',Math.round(.585*1772),Math.round(.400*1181)+12);
-        ctx.fillText(c.code||'',Math.round(.585*1772),Math.round(.518*1181)+6);
-        ctx.fillText(c.wert||'–',Math.round(.585*1772),Math.round(.637*1181)-6);
-        ctx.fillText(ablStr,Math.round(.585*1772),Math.round(.730*1181)+12);
+        ctx.textAlign='left';
+        ctx.fillText(c.school||'',Math.round(.530*1772),Math.round(.410*1181));
+        ctx.fillText(c.code||'',Math.round(.530*1772),Math.round(.520*1181));
+        ctx.fillText(c.wert||'–',Math.round(.530*1772),Math.round(.640*1181));
+        ctx.fillText(ablStr,Math.round(.530*1772),Math.round(.740*1181));
         resolve(canvas.toDataURL('image/jpeg',0.97));
       };
       img.src=BG;
@@ -1397,11 +1398,11 @@ function dlJPEGsList(list){
       const img=new Image();
       img.onload=()=>{
         ctx.drawImage(img,0,0,1772,1181);
-        ctx.font='500 46px Arial';ctx.fillStyle='#141414';ctx.textBaseline='middle';
-        ctx.fillText(c.school||'',Math.round(.585*1772),Math.round(.400*1181)+12);
-        ctx.fillText(c.code||'',Math.round(.585*1772),Math.round(.518*1181)+6);
-        ctx.fillText(c.wert||'–',Math.round(.585*1772),Math.round(.637*1181)-6);
-        ctx.fillText(ablStr,Math.round(.585*1772),Math.round(.730*1181)+12);
+        ctx.font='500 46px Arial';ctx.fillStyle='#141414';ctx.textBaseline='middle';ctx.textAlign='left';
+        ctx.fillText(c.school||'',Math.round(.530*1772),Math.round(.410*1181));
+        ctx.fillText(c.code||'',Math.round(.530*1772),Math.round(.520*1181));
+        ctx.fillText(c.wert||'–',Math.round(.530*1772),Math.round(.640*1181));
+        ctx.fillText(ablStr,Math.round(.530*1772),Math.round(.740*1181));
         canvas.toBlob(blob=>resolve({blob,code:c.code}),'image/jpeg',0.95);
       };
       img.src=BG;
