@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Gutscheine">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192.png">
@@ -665,7 +665,11 @@ window.openStatistik = async function() {
   for(const aktion of aktionen) {
     const snap = await getDocs(collection(db, 'aktionen_'+aktion.id));
     const docs = snap.docs.map(d => d.data());
-    docs.forEach(d => allCodes.push({...d, aktionName: aktion.name}));
+    // Gruppen-Bemerkungen dieser Aktion laden
+    const grpSnap = await getDocs(collection(db, 'aktionen_'+aktion.id+'_groups'));
+    const notes = {};
+    grpSnap.docs.forEach(g => { const gd = g.data(); if(gd.name) notes[gd.name] = gd.note||''; });
+    docs.forEach(d => allCodes.push({...d, aktionName: aktion.name, groupNote: notes[d.school]||''}));
     const tot = docs.length;
     const red = docs.filter(d => d.redeemed).length;
     const opn = tot - red;
@@ -753,7 +757,7 @@ window.openStatistik = async function() {
     </div>`;
 
   // Export button
-  document.getElementById('stat-export-csv').onclick = () => exportCSV(aktionenStats, normalDocs);
+  document.getElementById('stat-export-csv').onclick = () => exportCSV(allCodes, normalDocs);
   document.getElementById('stat-export-xlsx').onclick = () => exportExcel(aktionenStats, normalDocs, allCodes);
 };
 
@@ -779,17 +783,17 @@ function exportExcel(aktionenStats, normalDocs, allCodes) {
   XLSX.utils.book_append_sheet(wb, ws1, 'Übersicht');
 
   // Sheet 2: Aktions-Codes
-  const codesData = [['Aktion', 'Code', 'Gruppe', 'Wert', 'Status', 'Eingelöst am', 'Erstellt am']];
+  const codesData = [['Aktion', 'Code', 'Gruppe', 'Bemerkung (Gruppe)', 'Wert', 'Status', 'Eingelöst am', 'Erstellt am']];
   allCodes.forEach(c => {
     codesData.push([
-      c.aktionName||'', c.code||'', c.school||'', c.wert||'',
+      c.aktionName||'', c.code||'', c.school||'', c.groupNote||'', c.wert||'',
       c.redeemed ? 'Eingelöst' : 'Offen',
       c.date||'',
       c.created ? new Date(c.created).toLocaleDateString('de-DE') : ''
     ]);
   });
   const ws2 = XLSX.utils.aoa_to_sheet(codesData);
-  ws2['!cols'] = [{wch:20},{wch:12},{wch:22},{wch:10},{wch:12},{wch:14},{wch:14}];
+  ws2['!cols'] = [{wch:20},{wch:12},{wch:22},{wch:30},{wch:10},{wch:12},{wch:14},{wch:14}];
   XLSX.utils.book_append_sheet(wb, ws2, 'Aktions-Codes');
 
   // Sheet 3: Normal-Gutscheine
@@ -809,16 +813,16 @@ function exportExcel(aktionenStats, normalDocs, allCodes) {
   toast('Excel exportiert ✓');
 }
 
-function exportCSV(aktionenStats, normalDocs) {
-  let csv = 'Kategorie;Aktion;Code;Gruppe/Für;Wert;Status;Datum\n';
-  for(const a of aktionenStats) {
-    // We need codes per aktion - but we don't have them here
-    // Just export summary
-    csv += `Aktions-Gutscheine;${a.name};;Gesamt ${a.tot};${a.wert.toFixed(2).replace('.',',')} €;${a.opn} offen / ${a.red} eingelöst;\n`;
-  }
-  normalDocs.forEach(d => {
-    csv += `Normal-Gutscheine;;${d.code||''};${d.fuer||''};${d.wert||''};${d.redeemed?'Eingelöst':'Offen'};${d.date||''}\n`;
+function exportCSV(allCodes, normalDocs) {
+  const esc = v => { v = (v==null?'':String(v)); return /[";\n\r]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; };
+  const rows = [['Kategorie','Aktion','Code','Gruppe/Für','Bemerkung','Wert','Status','Eingelöst am']];
+  allCodes.forEach(c => {
+    rows.push(['Aktions-Gutscheine', c.aktionName||'', c.code||'', c.school||'', c.groupNote||'', c.wert||'', c.redeemed?'Eingelöst':'Offen', c.date||'']);
   });
+  normalDocs.forEach(d => {
+    rows.push(['Normal-Gutscheine', '', d.code||'', d.fuer||'', d.bemerkung||'', d.wert||'', d.redeemed?'Eingelöst':'Offen', d.date||'']);
+  });
+  const csv = String.fromCharCode(0xFEFF) + rows.map(r => r.map(esc).join(';')).join('\r\n');
   const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -973,7 +977,7 @@ function goMenu(){
   if(typeof dlSelectMode!=="undefined"&&dlSelectMode)stopDlSelectMode();
   if(codesUnsub){codesUnsub();codesUnsub=null}
   if(groupsUnsub){groupsUnsub();groupsUnsub=null}
-  codes=[];persistedGroups=[];curSchool="";
+  codes=[];persistedGroups=[];groupNotes={};curSchool="";
   document.getElementById("app").classList.remove("show");
   showScreen("aktionen-menu");
   renderMenu(curKategorie);
@@ -1052,7 +1056,8 @@ function renderOv(){
     const ini=n.replace(/fahrschule\s*/i,'').trim().substring(0,2).toUpperCase();
     const pct=s.t?Math.round(s.d/s.t*100):0;
     const esc=n.replace(/'/g,"\\'");
-    return `<div class="scard" style="display:block;padding:13px 14px"><div style="display:flex;align-items:center;gap:11px;margin-bottom:8px"><div class="savt" onclick="window._openGrp('${esc}')" style="cursor:pointer">${ini}</div><div style="flex:1;min-width:0;cursor:pointer" onclick="window._openGrp('${esc}')"><div class="sname">${n}</div><div style="display:flex;gap:5px;margin-top:5px;flex-wrap:wrap"><span style="background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);border-radius:99px;padding:2px 9px;font-size:11px;color:var(--grn);font-weight:500">${s.t-s.d} offen</span>${s.d>0?`<span style="background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.25);border-radius:99px;padding:2px 9px;font-size:11px;color:var(--red);font-weight:500">${s.d} eingelöst</span>`:''}</div></div><div style="display:flex;gap:6px;flex-shrink:0"><button class="bsm b-edt" onclick="window._editGrp('${esc}')" style="font-size:16px;padding:8px 11px">✏️</button><button class="bsm b-del" onclick="window._delGrp('${esc}')" style="font-size:16px;padding:8px 11px">🗑</button></div></div><div class="pbar"><div class="pbar-f" style="width:${pct}%"></div></div></div>`;
+    const noteHtml=(groupNotes[n]||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return `<div class="scard" style="display:block;padding:13px 14px"><div style="display:flex;align-items:center;gap:11px;margin-bottom:8px"><div class="savt" onclick="window._openGrp('${esc}')" style="cursor:pointer">${ini}</div><div style="flex:1;min-width:0;cursor:pointer" onclick="window._openGrp('${esc}')"><div class="sname">${n}</div><div style="display:flex;gap:5px;margin-top:5px;flex-wrap:wrap"><span style="background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);border-radius:99px;padding:2px 9px;font-size:11px;color:var(--grn);font-weight:500">${s.t-s.d} offen</span>${s.d>0?`<span style="background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.25);border-radius:99px;padding:2px 9px;font-size:11px;color:var(--red);font-weight:500">${s.d} eingelöst</span>`:''}</div></div><div style="display:flex;gap:6px;flex-shrink:0"><button class="bsm b-edt" onclick="window._editGrp('${esc}')" style="font-size:16px;padding:8px 11px">✏️</button><button class="bsm b-del" onclick="window._delGrp('${esc}')" style="font-size:16px;padding:8px 11px">🗑</button></div></div>${noteHtml?`<div style="font-size:12px;color:var(--acc2);margin:0 0 8px;display:flex;gap:6px;align-items:flex-start"><span style="flex-shrink:0">📝</span><span style="white-space:pre-wrap;word-break:break-word">${noteHtml}</span></div>`:''}<div class="pbar"><div class="pbar-f" style="width:${pct}%"></div></div></div>`;
   }).join('');
 }
 window.renderDet = function renderDet(){
@@ -1295,6 +1300,7 @@ document.getElementById('cfm-no').onclick=()=>{showOv(null);pendingFn=null};
 document.getElementById('cfm-yes').onclick=async()=>{const fn=pendingFn;pendingFn=null;if(fn){const closeFirst=!fn.toString().includes('showOv(null)');if(closeFirst)showOv(null);await fn();}else showOv(null);};
 
 let persistedGroups=[];
+let groupNotes={};
 let groupsUnsub=null;
 
 function openAktion(id){
@@ -1316,6 +1322,8 @@ function openAktion(id){
   // Listen to groups collection
   groupsUnsub=onSnapshot(collection(db,'aktionen_'+id+'_groups'),snap=>{
     persistedGroups=snap.docs.map(d=>d.data().name);
+    groupNotes={};
+    snap.docs.forEach(d=>{const data=d.data();if(data.name)groupNotes[data.name]=data.note||'';});
     renderOv(); // re-render when groups update
   });
   codesUnsub=onSnapshot(query(collection(db,'aktionen_'+id),orderBy('created','asc')),snap=>{
@@ -1449,19 +1457,30 @@ window._toggleSel = function(id){
   renderDet();
 };
 
-window._editGrp = async function(school){
-  const neu=prompt('Gruppenname ändern:',school);
-  if(neu&&neu.trim()&&neu.trim()!==school){
+window._editGrp = function(school){
+  const ok=document.getElementById('cfm-yes');ok.textContent='Speichern';ok.className='btn btn-a';
+  document.getElementById('cfm-t').textContent='Gruppe bearbeiten';
+  const nameVal=school.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+  const noteVal=(groupNotes[school]||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  document.getElementById('cfm-b').innerHTML=`<div class="fg" style="margin-bottom:10px"><label class="fl">Gruppenname</label><input class="fi" id="eg-name" type="text" value="${nameVal}"></div><div class="fg"><label class="fl">Bemerkung (intern, erscheint nicht auf dem Gutschein)</label><textarea class="fi" id="eg-note" rows="3" placeholder="z. B. Ansprechpartner, Konditionen, Notizen…" style="resize:none;line-height:1.5">${noteVal}</textarea></div>`;
+  pendingFn=async()=>{
+    const neu=document.getElementById('eg-name').value.trim();
+    const note=document.getElementById('eg-note').value.trim();
+    if(!neu){toast('Bitte Gruppenname eingeben');return}
     const batch=writeBatch(db);
-    codes.filter(c=>c.school===school).forEach(c=>batch.update(doc(db,'aktionen_'+curAktion.id,c.id),{school:neu.trim()}));
-    // Update group name in persistence store
-    const oldKey=school.replace(/[^a-z0-9]/gi,'_');
-    const newKey=neu.trim().replace(/[^a-z0-9]/gi,'_');
-    batch.delete(doc(db,'aktionen_'+curAktion.id+'_groups',oldKey));
-    batch.set(doc(db,'aktionen_'+curAktion.id+'_groups',newKey),{name:neu.trim(),created:new Date().toISOString()});
+    if(neu!==school){
+      codes.filter(c=>c.school===school).forEach(c=>batch.update(doc(db,'aktionen_'+curAktion.id,c.id),{school:neu}));
+      const oldKey=school.replace(/[^a-z0-9]/gi,'_');
+      const newKey=neu.replace(/[^a-z0-9]/gi,'_');
+      batch.delete(doc(db,'aktionen_'+curAktion.id+'_groups',oldKey));
+      batch.set(doc(db,'aktionen_'+curAktion.id+'_groups',newKey),{name:neu,note,created:new Date().toISOString()});
+    }else{
+      batch.set(doc(db,'aktionen_'+curAktion.id+'_groups',school.replace(/[^a-z0-9]/gi,'_')),{name:school,note},{merge:true});
+    }
     await batch.commit();
-    toast('Gruppe umbenannt ✓');
-  }
+    toast('Gespeichert ✓');showOv(null);
+  };
+  showOv('ov-cfm');
 };
 
 window._delGrp = function(school){
