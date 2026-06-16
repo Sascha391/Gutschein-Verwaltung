@@ -1153,10 +1153,10 @@ function printVouchers(list){
         ctx.fillStyle='#141414';
         ctx.textBaseline='middle';
         ctx.textAlign='left';
-        ctx.fillText(c.school||'',Math.round(.530*1772),Math.round(.410*1181));
-        ctx.fillText(c.code||'',Math.round(.530*1772),Math.round(.520*1181));
-        ctx.fillText(c.wert||'–',Math.round(.530*1772),Math.round(.640*1181));
-        ctx.fillText(ablStr,Math.round(.530*1772),Math.round(.740*1181));
+        ctx.fillText(c.school||'',Math.round(.520*1772),Math.round(.410*1181));
+        ctx.fillText(c.code||'',Math.round(.520*1772),Math.round(.520*1181));
+        ctx.fillText(c.wert||'–',Math.round(.520*1772),Math.round(.630*1181));
+        ctx.fillText(ablStr,Math.round(.520*1772),Math.round(.740*1181));
         resolve(canvas.toDataURL('image/jpeg',0.97));
       };
       img.src=BG;
@@ -1399,10 +1399,10 @@ function dlJPEGsList(list){
       img.onload=()=>{
         ctx.drawImage(img,0,0,1772,1181);
         ctx.font='500 46px Arial';ctx.fillStyle='#141414';ctx.textBaseline='middle';ctx.textAlign='left';
-        ctx.fillText(c.school||'',Math.round(.530*1772),Math.round(.410*1181));
-        ctx.fillText(c.code||'',Math.round(.530*1772),Math.round(.520*1181));
-        ctx.fillText(c.wert||'–',Math.round(.530*1772),Math.round(.640*1181));
-        ctx.fillText(ablStr,Math.round(.530*1772),Math.round(.740*1181));
+        ctx.fillText(c.school||'',Math.round(.520*1772),Math.round(.410*1181));
+        ctx.fillText(c.code||'',Math.round(.520*1772),Math.round(.520*1181));
+        ctx.fillText(c.wert||'–',Math.round(.520*1772),Math.round(.630*1181));
+        ctx.fillText(ablStr,Math.round(.520*1772),Math.round(.740*1181));
         canvas.toBlob(blob=>resolve({blob,code:c.code}),'image/jpeg',0.95);
       };
       img.src=BG;
