@@ -262,6 +262,7 @@ hr{border:none;border-top:1px solid var(--brd);margin:18px 0}
     <div id="p-det" class="page">
       <div class="dacts">
         <button class="btn btn-g" id="det-print">🖨 Drucken</button>
+        <button class="btn btn-o" id="det-view">👁 Ansicht</button>
         <button class="btn btn-o" id="det-dl">⬇ Download</button>
         <button class="btn btn-o" id="det-add">＋ Codes</button>
         <button class="btn btn-d" id="det-del">🗑 Löschen</button>
@@ -344,6 +345,15 @@ hr{border:none;border-top:1px solid var(--brd);margin:18px 0}
       <button class="btn btn-o" id="dl-single">☑️ Einzelne auswählen</button>
       <button class="btn btn-o" id="dl-cancel">Abbrechen</button>
     </div>
+  </div>
+</div>
+<div class="ov" id="ov-view">
+  <div class="dlg" style="max-width:560px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;position:sticky;top:0;background:var(--surf2);padding-bottom:4px">
+      <h3 style="margin:0" id="view-title">Ansicht</h3>
+      <button class="btn btn-o" id="view-close" style="width:auto;margin:0;padding:8px 14px">✕ Schließen</button>
+    </div>
+    <div id="view-imgs" style="display:flex;flex-direction:column;gap:16px"></div>
   </div>
 </div>
 <div class="ov" id="ov-cfm">
@@ -1102,7 +1112,7 @@ window.renderDet = function renderDet(){
       : dlSelectMode
       ? `<input type="checkbox" ${isDlSel?'checked':''} onclick="window._toggleDlSel('${c.id}')" style="width:20px;height:20px;cursor:pointer;accent-color:var(--acc)">`
       : '';
-    const btns = anySelMode ? '' : `<span class="badge ${c.redeemed?'bd':'bo'}">${c.redeemed?'✓':'Offen'}</span><div class="br"><button class="bsm ${c.redeemed?'b-undo':'b-chk'}" data-act="tog" data-id="${c.id}" data-r="${c.redeemed}">${c.redeemed?'↩':'✓'}</button><button class="bsm b-edt" data-act="edit-c" data-id="${c.id}">✏️</button><button class="bsm b-prt" data-act="prt1" data-id="${c.id}">🖨</button><button class="bsm b-del" data-act="del-c" data-id="${c.id}" data-code="${c.code}">🗑</button></div>`;
+    const btns = anySelMode ? '' : `<span class="badge ${c.redeemed?'bd':'bo'}">${c.redeemed?'✓':'Offen'}</span><div class="br"><button class="bsm ${c.redeemed?'b-undo':'b-chk'}" data-act="tog" data-id="${c.id}" data-r="${c.redeemed}">${c.redeemed?'↩':'✓'}</button><button class="bsm b-edt" data-act="edit-c" data-id="${c.id}">✏️</button><button class="bsm b-prt" data-act="view1" data-id="${c.id}">👁</button><button class="bsm b-prt" data-act="prt1" data-id="${c.id}">🖨</button><button class="bsm b-del" data-act="del-c" data-id="${c.id}" data-code="${c.code}">🗑</button></div>`;
     return `<div class="ccard${c.redeemed?' done':''}" style="${selStyle}"><div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">${cb}<div style="min-width:0"><div class="ctxt">${c.code}</div><div class="cmeta">${c.wert?(c.wert.includes('€')?c.wert:c.wert+' €')+' · ':''}${c.redeemed?'Eingelöst · '+c.date:'Offen'}</div></div></div>${btns}</div>`;
   }).join('')+'</div>';
 }
@@ -1164,6 +1174,44 @@ document.getElementById('sc-redeem').onclick=async()=>{
   if(navigator.vibrate)navigator.vibrate(100);
 };
 
+// Rendert die Gutscheine der aktuellen Vorlage als Bild-DataURLs
+function buildVoucherDataURLs(list){
+  const vorlage=(curAktion&&curAktion.vorlage)||'fotoriede';
+  const cfg=voucherCfg(vorlage);
+  const _now=new Date();
+  const _m=_now.getMonth()+6;
+  const abl=new Date(_now.getFullYear()+Math.floor(_m/12), _m%12+1, 0);
+  const ablStr=abl.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
+  return Promise.all(list.map(c=>new Promise(resolve=>{
+    const canvas=document.createElement('canvas');
+    canvas.width=1772;canvas.height=1181;
+    const ctx=canvas.getContext('2d');
+    const img=new Image();
+    img.onload=()=>{
+      ctx.drawImage(img,0,0,1772,1181);
+      ctx.font='500 46px Arial,sans-serif';ctx.fillStyle='#141414';ctx.textBaseline='middle';ctx.textAlign='left';
+      cfg.draw(ctx,c,ablStr);
+      resolve({code:c.code||'',redeemed:!!c.redeemed,url:canvas.toDataURL('image/jpeg',0.92)});
+    };
+    img.onerror=()=>resolve(null);
+    img.src=cfg.bg;
+  })));
+}
+
+// Gutscheine direkt in der App anzeigen (Overlay, handy-tauglich)
+function viewVouchers(list,title){
+  if(!list.length){toast('Keine Codes');return}
+  document.getElementById('view-title').textContent=title||('Ansicht ('+list.length+')');
+  const box=document.getElementById('view-imgs');
+  box.innerHTML='<div class="empty"><div class="ei">⏳</div>Wird erstellt…</div>';
+  showOv('ov-view');
+  buildVoucherDataURLs(list).then(items=>{
+    const ok=items.filter(Boolean);
+    if(!ok.length){box.innerHTML='<div class="empty">Konnte nicht erstellt werden</div>';return}
+    box.innerHTML=ok.map(it=>`<div><img src="${it.url}" style="width:100%;display:block;border-radius:8px;border:1px solid var(--brd)"/><div style="font-size:12px;color:var(--txt2);margin-top:5px;text-align:center"><span style="font-family:'DM Mono',monospace">${it.code}</span>${it.redeemed?' · <span style="color:var(--grn)">eingelöst</span>':''}</div></div>`).join('');
+  });
+}
+
 function printVouchers(list){
   if(!list.length){toast('Keine Codes');return}
   const vorlage=(curAktion&&curAktion.vorlage)||'fotoriede';
@@ -1218,6 +1266,8 @@ function dlJPEGs(school){
 
 
 document.getElementById('det-print').onclick=()=>printVouchers(codes.filter(c=>c.school===curSchool&&!c.redeemed));
+document.getElementById('det-view').onclick=()=>{if(curSchool)viewVouchers(codes.filter(c=>c.school===curSchool),'Ansicht: '+curSchool)};
+document.getElementById('view-close').onclick=()=>showOv(null);
 document.getElementById('det-add').onclick=()=>{
   document.getElementById('cr-school').value=curSchool;
   document.getElementById('cr-wert').value=codes.find(c=>c.school===curSchool)?.wert||'';
@@ -1625,6 +1675,7 @@ document.addEventListener('click',async e=>{
     toast('Code gelöscht');
   });
   if(a==='prt1'){const c=codes.find(x=>x.id===id);if(c)printVouchers([c])}
+  if(a==='view1'){const c=codes.find(x=>x.id===id);if(c)viewVouchers([c],'Gutschein '+(c.code||''))}
   const eb=e.target.closest('.ebtn');if(eb&&eb.dataset.eidx!==undefined){selEmoji=EMOJIS[parseInt(eb.dataset.eidx)];renderEG();return}
   const vb=e.target.closest('.vbtn');if(vb&&vb.dataset.vorlage){selVorlage=vb.dataset.vorlage;renderVG();return}
 });
