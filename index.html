@@ -1129,7 +1129,7 @@ window.renderDet = function renderDet(){
       : dlSelectMode
       ? `<input type="checkbox" ${isDlSel?'checked':''} onclick="window._toggleDlSel('${c.id}')" style="width:20px;height:20px;cursor:pointer;accent-color:var(--acc)">`
       : '';
-    const btns = anySelMode ? '' : `<span class="badge ${c.redeemed?'bd':'bo'}">${c.redeemed?'✓':'Offen'}</span><div class="br"><button class="bsm ${c.redeemed?'b-undo':'b-chk'}" data-act="tog" data-id="${c.id}" data-r="${c.redeemed}">${c.redeemed?'↩':'✓'}</button><button class="bsm b-edt" data-act="edit-c" data-id="${c.id}">✏️</button><button class="bsm b-prt" data-act="view1" data-id="${c.id}">👁</button><button class="bsm b-prt" data-act="prt1" data-id="${c.id}">🖨</button><button class="bsm b-del" data-act="del-c" data-id="${c.id}" data-code="${c.code}">🗑</button></div>`;
+    const btns = anySelMode ? '' : `<span class="badge ${c.redeemed?'bd':'bo'}">${c.redeemed?'✓':'Offen'}</span><div class="br"><button class="bsm ${c.redeemed?'b-undo':'b-chk'}" data-act="tog" data-id="${c.id}" data-r="${c.redeemed}">${c.redeemed?'↩':'✓'}</button><button class="bsm b-edt" data-act="edit-c" data-id="${c.id}">✏️</button><button class="bsm b-prt" data-act="view1" data-id="${c.id}">👁</button><button class="bsm b-del" data-act="del-c" data-id="${c.id}" data-code="${c.code}">🗑</button></div>`;
     return `<div class="ccard${c.redeemed?' done':''}" style="${selStyle}"><div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">${cb}<div style="min-width:0"><div class="ctxt">${c.code}</div><div class="cmeta">${c.wert?(c.wert.includes('€')?c.wert:c.wert+' €')+' · ':''}${c.redeemed?'Eingelöst · '+c.date:'Offen'}</div></div></div>${btns}</div>`;
   }).join('')+'</div>';
 }
@@ -1138,7 +1138,7 @@ function renderLi(){
   const list=codes.filter(c=>(listF==='all'||(listF==='open'&&!c.redeemed)||(listF==='done'&&c.redeemed))&&(!q||c.code.toLowerCase().includes(q)||c.school.toLowerCase().includes(q)));
   const el=document.getElementById('li-list');
   if(!list.length){el.innerHTML='<div class="empty"><div class="ei">🔍</div>'+(codes.length?'Keine Ergebnisse':'Noch keine Codes')+'</div>';return}
-  el.innerHTML='<div class="clist">'+list.map(c=>`<div class="ccard${c.redeemed?' done':''}"><div style="flex:1;min-width:0"><div class="ctxt">${c.code}</div><div class="cmeta">${c.school}${c.wert?' · '+(c.wert.includes('€')?c.wert:c.wert+' €'):''}${c.date?' · '+c.date:''}</div></div><div class="br"><button class="bsm ${c.redeemed?'b-undo':'b-chk'}" data-act="tog" data-id="${c.id}" data-r="${c.redeemed}">${c.redeemed?'↩':'✓'}</button><button class="bsm b-prt" data-act="prt1" data-id="${c.id}">🖨</button><button class="bsm b-del" data-act="del-c" data-id="${c.id}" data-code="${c.code}">🗑</button></div></div>`).join('')+'</div>';
+  el.innerHTML='<div class="clist">'+list.map(c=>`<div class="ccard${c.redeemed?' done':''}"><div style="flex:1;min-width:0"><div class="ctxt">${c.code}</div><div class="cmeta">${c.school}${c.wert?' · '+(c.wert.includes('€')?c.wert:c.wert+' €'):''}${c.date?' · '+c.date:''}</div></div><div class="br"><button class="bsm ${c.redeemed?'b-undo':'b-chk'}" data-act="tog" data-id="${c.id}" data-r="${c.redeemed}">${c.redeemed?'↩':'✓'}</button><button class="bsm b-prt" data-act="view1" data-id="${c.id}">👁</button><button class="bsm b-del" data-act="del-c" data-id="${c.id}" data-code="${c.code}">🗑</button></div></div>`).join('')+'</div>';
 }
 function renderExist(){
   const schools=[...new Set(codes.map(c=>c.school))];
@@ -1670,7 +1670,6 @@ document.addEventListener('click',async e=>{
     if(curSchool) await setDoc(doc(db,'aktionen_'+curAktion.id+'_groups',curSchool.replace(/[^a-z0-9]/gi,'_')),{name:curSchool,created:new Date().toISOString()},{merge:true});
     toast('Code gelöscht');
   });
-  if(a==='prt1'){const c=codes.find(x=>x.id===id);if(c)printVouchers([c])}
   if(a==='view1'){const c=codes.find(x=>x.id===id);if(c)viewVouchers([c],'Gutschein '+(c.code||''))}
   const eb=e.target.closest('.ebtn');if(eb&&eb.dataset.eidx!==undefined){selEmoji=EMOJIS[parseInt(eb.dataset.eidx)];renderEG();return}
   const vb=e.target.closest('.vbtn');if(vb&&vb.dataset.vorlage){selVorlage=vb.dataset.vorlage;renderVG();return}
