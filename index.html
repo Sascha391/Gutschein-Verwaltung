@@ -418,8 +418,21 @@ loginBtn.addEventListener("click", function() {
   loginBtn.disabled = true;
   loginBtn.textContent = "Anmelden…";
   // Anmeldung über Firebase mit fester E-Mail + eingegebenem PIN; Screen-Wechsel in onAuthStateChanged
-  window._doLogin(pin).catch(function() {
-    errEl.textContent = "Falscher PIN. Bitte erneut versuchen.";
+  window._doLogin(pin).catch(function(e) {
+    var code = (e && e.code) ? e.code : "";
+    var msg;
+    if (code === "auth/invalid-credential" || code === "auth/wrong-password" || code === "auth/invalid-login-credentials" || code === "auth/user-not-found") {
+      msg = "Falscher PIN. Bitte erneut versuchen.";
+    } else if (code === "auth/operation-not-allowed") {
+      msg = "E-Mail/Passwort ist in Firebase noch nicht aktiviert.";
+    } else if (code === "auth/network-request-failed") {
+      msg = "Keine Verbindung zu Firebase (Internet/VPN prüfen).";
+    } else if (code === "auth/too-many-requests") {
+      msg = "Zu viele Versuche. Bitte später erneut.";
+    } else {
+      msg = "Fehler: " + (code || (e && e.message) || e);
+    }
+    errEl.textContent = msg;
     errEl.style.display = "block";
     document.getElementById("pin-inp").value = "";
   }).finally(function() {
