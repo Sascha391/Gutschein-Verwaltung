@@ -468,14 +468,31 @@ const APP_EMAIL = "app@foto-riede.de";
 // Anmeldung für das Login-Script (oben in der Seite). Meldet sich mit fester E-Mail + eingegebenem PIN an.
 window._doLogin = function(pin){ return signInWithEmailAndPassword(auth, APP_EMAIL, pin); };
 
+// Sitzungsdauer: nach 10 Stunden automatisch abmelden, PIN muss dann neu eingegeben werden
+const SESSION_MAX_MS = 10 * 60 * 60 * 1000;
+let _logoutTimer = null;
+
+function _doAutoLogout(){
+  localStorage.removeItem('loginTime');
+  if(_logoutTimer){ clearTimeout(_logoutTimer); _logoutTimer = null; }
+  signOut(auth).finally(function(){ location.reload(); });
+}
+
 // Abmelden: bei Firebase ausloggen und Seite neu laden (sauberer Zustand)
-window._logout = function(){ signOut(auth).finally(function(){ location.reload(); }); };
+window._logout = function(){ _doAutoLogout(); };
 
 // Reagiert auf An-/Abmeldung und schaltet die Screens um (sorgt auch für Auto-Login)
 let _menuStarted = false;
 onAuthStateChanged(auth, function(user){
   const loginEl = document.getElementById('login');
   if(user){
+    // Anmeldezeitpunkt merken (beim ersten Mal setzen) und 10-Stunden-Ablauf prüfen
+    let loginTime = parseInt(localStorage.getItem('loginTime') || '0', 10);
+    if(!loginTime){ loginTime = Date.now(); localStorage.setItem('loginTime', String(loginTime)); }
+    if(Date.now() - loginTime >= SESSION_MAX_MS){ _doAutoLogout(); return; }
+    // Timer auf die verbleibende Zeit bis zum automatischen Abmelden setzen
+    if(_logoutTimer) clearTimeout(_logoutTimer);
+    _logoutTimer = setTimeout(_doAutoLogout, SESSION_MAX_MS - (Date.now() - loginTime));
     loginEl.classList.remove('show');
     if(!_menuStarted){
       _menuStarted = true;
@@ -483,6 +500,7 @@ onAuthStateChanged(auth, function(user){
       initMenu();
     }
   } else {
+    if(_logoutTimer){ clearTimeout(_logoutTimer); _logoutTimer = null; }
     document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('show'); });
     loginEl.classList.add('show');
   }
