@@ -515,13 +515,13 @@ function voucherCfg(vorlage){
   if(vorlage==='passbild') return {bg:BG_PASSBILD, draw:(ctx,c,ablStr)=>{
     const x=Math.round(.540*1772);
     ctx.fillText(c.wert||'–', x, Math.round(.425*1181)); // IM WERT VON
-    ctx.fillText(c.code||'',  x, Math.round(.536*1181)); // DEIN CODE
+    ctx.fillText(fmtCode(c.code||''),  x, Math.round(.536*1181)); // DEIN CODE
     ctx.fillText(ablStr,      x, Math.round(.645*1181)); // GÜLTIG BIS
   }};
   return {bg:BG, draw:(ctx,c,ablStr)=>{ // fotoriede (mit Gruppenname)
     const x=Math.round(.520*1772);
     ctx.fillText(c.school||'',x, Math.round(.410*1181));
-    ctx.fillText(c.code||'',  x, Math.round(.520*1181));
+    ctx.fillText(fmtCode(c.code||''),  x, Math.round(.520*1181));
     ctx.fillText(c.wert||'–', x, Math.round(.630*1181));
     ctx.fillText(ablStr,      x, Math.round(.740*1181));
   }};
@@ -732,7 +732,7 @@ function renderNormalCanvas(c) {
       // FÜR und VON nur wenn ausgefüllt
       if(c.fuer)  ctx.fillText(c.fuer,   x, Math.round(0.290 * 1181) + 3*px1mm);
       if(c.von)   ctx.fillText(c.von,    x, Math.round(0.415 * 1181) + px1mm);
-      ctx.fillText(c.code   || '', x, Math.round(0.540 * 1181));
+      ctx.fillText(fmtCode(c.code   || ''), x, Math.round(0.540 * 1181));
       ctx.fillText(c.wert   || '', x, Math.round(0.658 * 1181));
       ctx.fillText(c.ablauf || '', x, Math.round(0.772 * 1181) - px1mm);
       resolve(canvas.toDataURL('image/jpeg', 0.97));
