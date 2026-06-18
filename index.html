@@ -556,7 +556,7 @@ function toast(m){const t=document.getElementById('toast');t.textContent=m;t.cla
 function showOv(id){document.querySelectorAll('.ov').forEach(o=>o.classList.remove('show'));if(id)document.getElementById(id).classList.add('show')}
 function cfm(title,html,fn){pendingFn=fn;document.getElementById('cfm-t').textContent=title;document.getElementById('cfm-b').innerHTML=html;const ok=document.getElementById('cfm-yes');ok.textContent='Löschen';ok.className='btn btn-d';showOv('ov-cfm')}
 function randomCode(len){const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';const buf=new Uint32Array(len);crypto.getRandomValues(buf);let s='';for(let i=0;i<len;i++)s+=A[buf[i]%A.length];return s}
-function genCode(n){const p=n.replace(/[^a-zA-ZäöüÄÖÜ]/g,'').replace(/[äÄ]/g,'A').replace(/[öÖ]/g,'O').replace(/[üÜ]/g,'U').substring(0,3).toUpperCase()||'GUT';return p+'-'+randomCode(6)}
+function genCode(n){return randomCode(8)}
 function setSy(s){const e=document.getElementById('live');e.textContent=s?'↻ Sync':'● Live';e.className='live'+(s?' sy':'')}
 
 // Expose initMenu for login script  
@@ -710,7 +710,7 @@ function renderNormalList() {
 
 
 function genNormalCode() {
-  return 'NOR-' + randomCode(6);
+  return randomCode(8);
 }
 
 function renderNormalCanvas(c) {
