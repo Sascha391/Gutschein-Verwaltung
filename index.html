@@ -561,6 +561,9 @@ function showOv(id){document.querySelectorAll('.ov').forEach(o=>o.classList.remo
 function cfm(title,html,fn){pendingFn=fn;document.getElementById('cfm-t').textContent=title;document.getElementById('cfm-b').innerHTML=html;const ok=document.getElementById('cfm-yes');ok.textContent='Löschen';ok.className='btn btn-d';showOv('ov-cfm')}
 function randomCode(len){const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';const buf=new Uint32Array(len);crypto.getRandomValues(buf);let s='';for(let i=0;i<len;i++)s+=A[buf[i]%A.length];return s}
 function genCode(n){return randomCode(8)}
+// Macht eingegebenen Text HTML-sicher: verhindert, dass Sonderzeichen wie < > " ' &
+// in Namen die Anzeige oder die Knöpfe zerschießen. Für Anzeige UND value="..."-Felder geeignet.
+function escHtml(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function normCode(s){return (s||'').toUpperCase().replace(/[^A-Z0-9]/g,'')}
 function fmtCode(c){c=c||'';return /^[A-Z0-9]{8}$/.test(c)?c.slice(0,4)+' '+c.slice(4):c}
 function setSy(s){const e=document.getElementById('live');e.textContent=s?'↻ Sync':'● Live';e.className='live'+(s?' sy':'')}
@@ -595,7 +598,7 @@ function mainScanRenderResult(found, foundAktionId) {
     res.innerHTML = `<div style="padding:18px 16px;background:rgba(245,158,11,.1);border:1.5px solid rgba(245,158,11,.5);border-radius:var(--r);text-align:center">
       <div style="font-size:30px;margin-bottom:6px">⚠️</div>
       <div style="font-size:16px;font-weight:700;color:var(--txt)">Bereits eingelöst</div>
-      <div style="font-size:13px;color:var(--txt2);margin-top:4px">${name}${found.date||found.redeemedDate ? ' · '+(found.date||found.redeemedDate) : ''}</div>
+      <div style="font-size:13px;color:var(--txt2);margin-top:4px">${escHtml(name)}${found.date||found.redeemedDate ? ' · '+(found.date||found.redeemedDate) : ''}</div>
     </div>`;
     act.style.display = 'none';
   } else {
@@ -605,7 +608,7 @@ function mainScanRenderResult(found, foundAktionId) {
       <div style="font-size:30px;margin-bottom:6px">✅</div>
       <div style="font-size:16px;font-weight:700;color:var(--txt)">Gültiger Gutschein</div>
       <div style="font-size:13px;color:var(--txt2);margin-top:3px">Bereit zur Einlösung</div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:10px">${pills.map(p=>`<span style="background:rgba(34,197,94,.25);border:1px solid rgba(34,197,94,.5);border-radius:99px;padding:5px 14px;font-size:13px;color:var(--txt);font-weight:500">${p}</span>`).join('')}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:10px">${pills.map(p=>`<span style="background:rgba(34,197,94,.25);border:1px solid rgba(34,197,94,.5);border-radius:99px;padding:5px 14px;font-size:13px;color:var(--txt);font-weight:500">${escHtml(p)}</span>`).join('')}</div>
     </div>`;
     act.style.display = 'block';
   }
@@ -704,9 +707,9 @@ function renderNormalList() {
     <div class="ccard${c.redeemed?' done':''}">
       <div style="flex:1;min-width:0">
         <div class="ctxt">${fmtCode(c.code)}</div>
-        <div class="cmeta">${c.fuer?'Für: '+c.fuer+' · ':''}${c.wert||''} · bis ${c.ablauf||''}</div>
-        ${c.redeemed&&c.redeemedDate?`<div style="font-size:11px;color:var(--grn);margin-top:3px">✓ Eingelöst am ${c.redeemedDate}</div>`:''}
-        ${c.bemerkung?`<div style="font-size:11px;color:var(--acc2);margin-top:3px">📝 ${c.bemerkung}</div>`:''}
+        <div class="cmeta">${c.fuer?'Für: '+escHtml(c.fuer)+' · ':''}${escHtml(c.wert||'')} · bis ${escHtml(c.ablauf||'')}</div>
+        ${c.redeemed&&c.redeemedDate?`<div style="font-size:11px;color:var(--grn);margin-top:3px">✓ Eingelöst am ${escHtml(c.redeemedDate)}</div>`:''}
+        ${c.bemerkung?`<div style="font-size:11px;color:var(--acc2);margin-top:3px">📝 ${escHtml(c.bemerkung)}</div>`:''}
       </div>
       <div class="br">
         <button class="bsm ${c.redeemed?'b-undo':'b-chk'}" onclick="window._toggleNormal('${c.id}',${c.redeemed})">${c.redeemed?'↩':'✓'}</button>
@@ -856,7 +859,7 @@ window.openStatistik = async function() {
       <div style="background:var(--surf);border:1px solid var(--brd);border-radius:var(--r);padding:14px 16px;margin-bottom:8px">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
           <span style="font-size:22px">${a.emoji}</span>
-          <span style="font-size:15px;font-weight:600">${a.name}</span>
+          <span style="font-size:15px;font-weight:600">${escHtml(a.name)}</span>
           <span style="margin-left:auto;font-size:12px;color:var(--txt2)">${a.tot} Codes</span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center">
@@ -1025,8 +1028,7 @@ function renderMenu(kat){
   if(!filtered.length){el.innerHTML='<div class="empty"><div class="ei">🎟</div>Noch keine Aktionen</div>';return}
   el.innerHTML=filtered.map((a,i)=>{
     const bg=['rgba(108,99,255,.18)','rgba(34,197,94,.15)','rgba(251,146,60,.15)','rgba(236,72,153,.15)','rgba(14,165,233,.15)'][i%5];
-    const esc=a.name.replace(/'/g,"\\'");
-    return `<div class="acard" style="transition:transform .1s,opacity .1s" onmousedown="this.style.transform='scale(.98)';this.style.opacity='.8'" onmouseup="this.style.transform='';this.style.opacity=''" ontouchstart="this.style.transform='scale(.98)';this.style.opacity='.8'" ontouchend="this.style.transform='';this.style.opacity=''"><div class="aico" style="background:${bg};cursor:pointer" onclick="window._openAktion('${a.id}')">${a.emoji||'🎁'}</div><div style="flex:1;cursor:pointer" onclick="window._openAktion('${a.id}')"><div class="aname">${a.name}</div></div><div style="display:flex;gap:8px"><button class="bsm b-edt" onclick="event.stopPropagation();window._editAktion('${a.id}')" style="font-size:18px;padding:9px 12px">✏️</button><button class="bsm b-del" onclick="event.stopPropagation();window._delAktion('${a.id}','${esc}')" style="font-size:18px;padding:9px 12px">🗑</button></div></div>`;
+    return `<div class="acard" style="transition:transform .1s,opacity .1s" onmousedown="this.style.transform='scale(.98)';this.style.opacity='.8'" onmouseup="this.style.transform='';this.style.opacity=''" ontouchstart="this.style.transform='scale(.98)';this.style.opacity='.8'" ontouchend="this.style.transform='';this.style.opacity=''"><div class="aico" style="background:${bg};cursor:pointer" onclick="window._openAktion('${a.id}')">${a.emoji||'🎁'}</div><div style="flex:1;cursor:pointer" onclick="window._openAktion('${a.id}')"><div class="aname">${escHtml(a.name)}</div></div><div style="display:flex;gap:8px"><button class="bsm b-edt" onclick="event.stopPropagation();window._editAktion('${a.id}')" style="font-size:18px;padding:9px 12px">✏️</button><button class="bsm b-del" onclick="event.stopPropagation();window._delAktion('${a.id}')" style="font-size:18px;padding:9px 12px">🗑</button></div></div>`;
   }).join('');
 }
 
@@ -1179,9 +1181,9 @@ function renderOv(){
   el.innerHTML=Object.entries(gs).map(([n,s])=>{
     const ini=n.replace(/fahrschule\s*/i,'').trim().substring(0,2).toUpperCase();
     const pct=s.t?Math.round(s.d/s.t*100):0;
-    const esc=n.replace(/'/g,"\\'");
+    const sEsc=escHtml(n);
     const noteHtml=(groupNotes[n]||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    return `<div class="scard" style="display:block;padding:13px 14px"><div style="display:flex;align-items:center;gap:11px;margin-bottom:8px"><div class="savt" onclick="window._openGrp('${esc}')" style="cursor:pointer">${ini}</div><div style="flex:1;min-width:0;cursor:pointer" onclick="window._openGrp('${esc}')"><div class="sname">${n}</div><div style="display:flex;gap:5px;margin-top:5px;flex-wrap:wrap"><span style="background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);border-radius:99px;padding:2px 9px;font-size:11px;color:var(--grn);font-weight:500">${s.t-s.d} offen</span>${s.d>0?`<span style="background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.25);border-radius:99px;padding:2px 9px;font-size:11px;color:var(--red);font-weight:500">${s.d} eingelöst</span>`:''}</div></div><div style="display:flex;gap:6px;flex-shrink:0"><button class="bsm b-edt" onclick="window._editGrp('${esc}')" style="font-size:16px;padding:8px 11px">✏️</button><button class="bsm b-del" onclick="window._delGrp('${esc}')" style="font-size:16px;padding:8px 11px">🗑</button></div></div>${noteHtml?`<div style="font-size:12px;color:var(--acc2);margin:0 0 8px;display:flex;gap:6px;align-items:flex-start"><span style="flex-shrink:0">📝</span><span style="white-space:pre-wrap;word-break:break-word">${noteHtml}</span></div>`:''}<div class="pbar"><div class="pbar-f" style="width:${pct}%"></div></div></div>`;
+    return `<div class="scard" style="display:block;padding:13px 14px"><div style="display:flex;align-items:center;gap:11px;margin-bottom:8px"><div class="savt" data-act="grp-open" data-school="${sEsc}" style="cursor:pointer">${escHtml(ini)}</div><div style="flex:1;min-width:0;cursor:pointer" data-act="grp-open" data-school="${sEsc}"><div class="sname">${escHtml(n)}</div><div style="display:flex;gap:5px;margin-top:5px;flex-wrap:wrap"><span style="background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);border-radius:99px;padding:2px 9px;font-size:11px;color:var(--grn);font-weight:500">${s.t-s.d} offen</span>${s.d>0?`<span style="background:rgba(248,113,113,.12);border:1px solid rgba(248,113,113,.25);border-radius:99px;padding:2px 9px;font-size:11px;color:var(--red);font-weight:500">${s.d} eingelöst</span>`:''}</div></div><div style="display:flex;gap:6px;flex-shrink:0"><button class="bsm b-edt" data-act="grp-edit" data-school="${sEsc}" style="font-size:16px;padding:8px 11px">✏️</button><button class="bsm b-del" data-act="grp-del" data-school="${sEsc}" style="font-size:16px;padding:8px 11px">🗑</button></div></div>${noteHtml?`<div style="font-size:12px;color:var(--acc2);margin:0 0 8px;display:flex;gap:6px;align-items:flex-start"><span style="flex-shrink:0">📝</span><span style="white-space:pre-wrap;word-break:break-word">${noteHtml}</span></div>`:''}<div class="pbar"><div class="pbar-f" style="width:${pct}%"></div></div></div>`;
   }).join('');
 }
 window.renderDet = function renderDet(){
@@ -1210,7 +1212,7 @@ window.renderDet = function renderDet(){
       ? `<input type="checkbox" ${isDlSel?'checked':''} onclick="window._toggleDlSel('${c.id}')" style="width:20px;height:20px;cursor:pointer;accent-color:var(--acc)">`
       : '';
     const btns = anySelMode ? '' : `<span class="badge ${c.redeemed?'bd':'bo'}">${c.redeemed?'✓':'Offen'}</span><div class="br"><button class="bsm ${c.redeemed?'b-undo':'b-chk'}" data-act="tog" data-id="${c.id}" data-r="${c.redeemed}">${c.redeemed?'↩':'✓'}</button><button class="bsm b-edt" data-act="edit-c" data-id="${c.id}">✏️</button><button class="bsm b-prt" data-act="view1" data-id="${c.id}">👁</button><button class="bsm b-del" data-act="del-c" data-id="${c.id}" data-code="${c.code}">🗑</button></div>`;
-    return `<div class="ccard${c.redeemed?' done':''}" style="${selStyle}"><div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">${cb}<div style="min-width:0"><div class="ctxt">${fmtCode(c.code)}</div><div class="cmeta">${c.wert?(c.wert.includes('€')?c.wert:c.wert+' €')+' · ':''}${c.redeemed?'Eingelöst · '+c.date:'Offen'}</div></div></div>${btns}</div>`;
+    return `<div class="ccard${c.redeemed?' done':''}" style="${selStyle}"><div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">${cb}<div style="min-width:0"><div class="ctxt">${fmtCode(c.code)}</div><div class="cmeta">${c.wert?(c.wert.includes('€')?escHtml(c.wert):escHtml(c.wert+' €'))+' · ':''}${c.redeemed?'Eingelöst · '+escHtml(c.date):'Offen'}</div></div></div>${btns}</div>`;
   }).join('')+'</div>';
 }
 function renderLi(){
@@ -1218,13 +1220,13 @@ function renderLi(){
   const list=codes.filter(c=>(listF==='all'||(listF==='open'&&!c.redeemed)||(listF==='done'&&c.redeemed))&&(!q||c.code.toLowerCase().includes(q)||c.school.toLowerCase().includes(q)));
   const el=document.getElementById('li-list');
   if(!list.length){el.innerHTML='<div class="empty"><div class="ei">🔍</div>'+(codes.length?'Keine Ergebnisse':'Noch keine Codes')+'</div>';return}
-  el.innerHTML='<div class="clist">'+list.map(c=>`<div class="ccard${c.redeemed?' done':''}"><div style="flex:1;min-width:0"><div class="ctxt">${fmtCode(c.code)}</div><div class="cmeta">${c.school}${c.wert?' · '+(c.wert.includes('€')?c.wert:c.wert+' €'):''}${c.date?' · '+c.date:''}</div></div><div class="br"><button class="bsm ${c.redeemed?'b-undo':'b-chk'}" data-act="tog" data-id="${c.id}" data-r="${c.redeemed}">${c.redeemed?'↩':'✓'}</button><button class="bsm b-prt" data-act="view1" data-id="${c.id}">👁</button><button class="bsm b-del" data-act="del-c" data-id="${c.id}" data-code="${c.code}">🗑</button></div></div>`).join('')+'</div>';
+  el.innerHTML='<div class="clist">'+list.map(c=>`<div class="ccard${c.redeemed?' done':''}"><div style="flex:1;min-width:0"><div class="ctxt">${fmtCode(c.code)}</div><div class="cmeta">${escHtml(c.school)}${c.wert?' · '+(c.wert.includes('€')?escHtml(c.wert):escHtml(c.wert+' €')):''}${c.date?' · '+escHtml(c.date):''}</div></div><div class="br"><button class="bsm ${c.redeemed?'b-undo':'b-chk'}" data-act="tog" data-id="${c.id}" data-r="${c.redeemed}">${c.redeemed?'↩':'✓'}</button><button class="bsm b-prt" data-act="view1" data-id="${c.id}">👁</button><button class="bsm b-del" data-act="del-c" data-id="${c.id}" data-code="${c.code}">🗑</button></div></div>`).join('')+'</div>';
 }
 function renderExist(){
   const schools=[...new Set(codes.map(c=>c.school))];
   const el=document.getElementById('cr-exist');
   if(!schools.length){el.innerHTML='<div style="color:var(--txt3);font-size:13px">Noch keine Gruppen</div>';return}
-  el.innerHTML='<div class="clist">'+schools.map((s,i)=>`<div class="ccard" data-act="prefill" data-idx="${i}" style="cursor:pointer"><div style="flex:1"><div style="font-size:14px;font-weight:500">${s}</div><div class="cmeta">${codes.filter(c=>c.school===s&&!c.redeemed).length} offene Codes</div></div><span style="font-size:12px;color:var(--txt3)">antippen →</span></div>`).join('')+'</div>';
+  el.innerHTML='<div class="clist">'+schools.map((s,i)=>`<div class="ccard" data-act="prefill" data-idx="${i}" style="cursor:pointer"><div style="flex:1"><div style="font-size:14px;font-weight:500">${escHtml(s)}</div><div class="cmeta">${codes.filter(c=>c.school===s&&!c.redeemed).length} offene Codes</div></div><span style="font-size:12px;color:var(--txt3)">antippen →</span></div>`).join('')+'</div>';
 }
 
 document.getElementById('cr-btn').onclick=async()=>{
@@ -1256,11 +1258,11 @@ function doScan(){
     res.innerHTML='<div style="padding:16px;background:rgba(248,113,113,.1);border:1.5px solid rgba(248,113,113,.5);border-radius:var(--r);text-align:center"><div style="font-size:26px;margin-bottom:4px">❌</div><div style="font-size:15px;font-weight:700;color:var(--txt)">Nicht gefunden</div><div style="font-size:12px;color:var(--txt2);margin-top:3px">Tippfehler? Code nochmal prüfen.</div></div>';
     act.style.display='none';
   } else if(found.redeemed){
-    res.innerHTML=`<div style="padding:16px;background:rgba(245,158,11,.1);border:1.5px solid rgba(245,158,11,.5);border-radius:var(--r);text-align:center"><div style="font-size:26px;margin-bottom:4px">⚠️</div><div style="font-size:15px;font-weight:700;color:var(--txt)">Bereits eingelöst</div><div style="font-size:12px;color:var(--txt2);margin-top:3px">${found.school} · ${found.date}</div></div>`;
+    res.innerHTML=`<div style="padding:16px;background:rgba(245,158,11,.1);border:1.5px solid rgba(245,158,11,.5);border-radius:var(--r);text-align:center"><div style="font-size:26px;margin-bottom:4px">⚠️</div><div style="font-size:15px;font-weight:700;color:var(--txt)">Bereits eingelöst</div><div style="font-size:12px;color:var(--txt2);margin-top:3px">${escHtml(found.school)} · ${escHtml(found.date)}</div></div>`;
     act.style.display='none';
   } else {
-    const wert=found.wert?`<span style="background:rgba(34,197,94,.25);border:1px solid rgba(34,197,94,.5);border-radius:99px;padding:4px 12px;font-size:12px;color:var(--txt);font-weight:500">${found.wert}</span>`:'';
-    res.innerHTML=`<div style="padding:16px;background:rgba(34,197,94,.08);border:1.5px solid rgba(34,197,94,.5);border-radius:var(--r);text-align:center"><div style="font-size:26px;margin-bottom:4px">✅</div><div style="font-size:15px;font-weight:700;color:var(--txt)">Gültiger Gutschein</div><div style="font-size:12px;color:var(--txt2);margin-top:3px;margin-bottom:${found.wert?'8px':'0'}">${found.school}</div>${wert}</div>`;
+    const wert=found.wert?`<span style="background:rgba(34,197,94,.25);border:1px solid rgba(34,197,94,.5);border-radius:99px;padding:4px 12px;font-size:12px;color:var(--txt);font-weight:500">${escHtml(found.wert)}</span>`:'';
+    res.innerHTML=`<div style="padding:16px;background:rgba(34,197,94,.08);border:1.5px solid rgba(34,197,94,.5);border-radius:var(--r);text-align:center"><div style="font-size:26px;margin-bottom:4px">✅</div><div style="font-size:15px;font-weight:700;color:var(--txt)">Gültiger Gutschein</div><div style="font-size:12px;color:var(--txt2);margin-top:3px;margin-bottom:${found.wert?'8px':'0'}">${escHtml(found.school)}</div>${wert}</div>`;
     act.style.display='block';
   }
 }
@@ -1490,7 +1492,8 @@ window._editAktion = function(id){
   renderEG();renderVG();showOv('ov-aktion');
 };
 window._delAktion = function(id, name){
-  cfm('Aktion löschen?',`<p>"<strong>${name}</strong>" wird gelöscht.</p>`,async()=>{
+  name = name || (aktionen.find(a=>a.id===id)||{}).name || '';
+  cfm('Aktion löschen?',`<p>"<strong>${escHtml(name)}</strong>" wird gelöscht.</p>`,async()=>{
     await deleteDoc(doc(db,'aktionen_meta',id));
     toast('Gelöscht');renderMenu(curKategorie);
   });
@@ -1757,7 +1760,7 @@ window._editGrp = function(school){
 
 window._delGrp = function(school){
   const n=codes.filter(c=>c.school===school).length;
-  cfm('Gruppe löschen?',`<p>Alle <strong>${n}</strong> Codes von "<strong>${school}</strong>" werden dauerhaft gelöscht.</p>`,async()=>{
+  cfm('Gruppe löschen?',`<p>Alle <strong>${n}</strong> Codes von "<strong>${escHtml(school)}</strong>" werden dauerhaft gelöscht.</p>`,async()=>{
     const batch=writeBatch(db);
     codes.filter(c=>c.school===school).forEach(c=>batch.delete(doc(db,'aktionen_'+curAktion.id,c.id)));
     // Also delete from persistence store
@@ -1819,10 +1822,10 @@ window._editNormal = function(id) {
   };
   document.getElementById('cfm-t').textContent = 'Gutschein bearbeiten';
   document.getElementById('cfm-b').innerHTML = `
-    <div class="fg" style="margin-bottom:10px"><label class="fl">Für</label><input class="fi" id="en-fuer" type="text" value="${c.fuer||''}"></div>
-    <div class="fg" style="margin-bottom:10px"><label class="fl">Von</label><input class="fi" id="en-von" type="text" value="${c.von||''}"></div>
-    <div class="fg" style="margin-bottom:10px"><label class="fl">Wert</label><input class="fi" id="en-wert" type="text" value="${c.wert||''}"></div>
-    <div class="fg"><label class="fl">Bemerkung</label><textarea class="fi" id="en-bem" rows="2" style="resize:none">${c.bemerkung||''}</textarea></div>`;
+    <div class="fg" style="margin-bottom:10px"><label class="fl">Für</label><input class="fi" id="en-fuer" type="text" value="${escHtml(c.fuer||'')}"></div>
+    <div class="fg" style="margin-bottom:10px"><label class="fl">Von</label><input class="fi" id="en-von" type="text" value="${escHtml(c.von||'')}"></div>
+    <div class="fg" style="margin-bottom:10px"><label class="fl">Wert</label><input class="fi" id="en-wert" type="text" value="${escHtml(c.wert||'')}"></div>
+    <div class="fg"><label class="fl">Bemerkung</label><textarea class="fi" id="en-bem" rows="2" style="resize:none">${escHtml(c.bemerkung||'')}</textarea></div>`;
   document.getElementById('ov-cfm').classList.add('show');
 };
 
@@ -1861,8 +1864,11 @@ document.addEventListener('click',async e=>{
   const a=el.dataset.act,id=el.dataset.id;
   if(a==='open-a')openAktion(id);
   if(a==='edit-a'){const ak=aktionen.find(x=>x.id===id);if(!ak)return;editAktionId=id;selEmoji=ak.emoji||'🎁';selVorlage=ak.vorlage||'fotoriede';document.getElementById('oa-name').value=ak.name;document.getElementById('oa-monate').value=String(ak.gueltigMonate||6);document.getElementById('ov-aktion-title').textContent='Aktion bearbeiten';document.getElementById('oa-save').textContent='Speichern';renderEG();renderVG();showOv('ov-aktion')}
-  if(a==='del-a')cfm('Aktion löschen?',`<p>"${el.dataset.name}" wird gelöscht.</p>`,async()=>{await deleteDoc(doc(db,'aktionen_meta',id));toast('Gelöscht');renderMenu(curKategorie)});
+  if(a==='del-a')cfm('Aktion löschen?',`<p>"${escHtml(el.dataset.name)}" wird gelöscht.</p>`,async()=>{await deleteDoc(doc(db,'aktionen_meta',id));toast('Gelöscht');renderMenu(curKategorie)});
   if(a==='open-g')openGrp(el.dataset.school);
+  if(a==='grp-open')openGrpSmart(el.dataset.school);
+  if(a==='grp-edit')window._editGrp(el.dataset.school);
+  if(a==='grp-del')window._delGrp(el.dataset.school);
 
   if(a==='prefill'){
     const schools=[...new Set(codes.map(c=>c.school))];
@@ -1876,7 +1882,7 @@ document.addEventListener('click',async e=>{
     const ok=document.getElementById('cfm-yes');ok.textContent='Speichern';ok.className='btn btn-a';
     pendingFn=async()=>{const s=document.getElementById('ec-s').value.trim();const w=document.getElementById('ec-w').value.trim();if(!s){toast('Bitte Name eingeben');return}await updateDoc(doc(db,'aktionen_'+curAktion.id,id),{school:s,wert:w});toast('Gespeichert ✓');showOv(null);};
     document.getElementById('cfm-t').textContent='Gutschein bearbeiten';
-    document.getElementById('cfm-b').innerHTML=`<div class="fg" style="margin-bottom:10px"><label class="fl">Name</label><input class="fi" id="ec-s" type="text" value="${c.school}"></div><div class="fg"><label class="fl">Wert</label><input class="fi" id="ec-w" type="text" value="${c.wert||''}" placeholder="z. B. 50,00 €"></div>`;
+    document.getElementById('cfm-b').innerHTML=`<div class="fg" style="margin-bottom:10px"><label class="fl">Name</label><input class="fi" id="ec-s" type="text" value="${escHtml(c.school)}"></div><div class="fg"><label class="fl">Wert</label><input class="fi" id="ec-w" type="text" value="${escHtml(c.wert||'')}" placeholder="z. B. 50,00 €"></div>`;
     showOv('ov-cfm');
   }
   if(a==='del-c')cfm('Code löschen?',`<p>Code "<strong>${el.dataset.code}</strong>" wird gelöscht.</p>`,async()=>{
