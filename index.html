@@ -383,6 +383,8 @@ window.toggleTheme = function() {
 (function() {
   if(localStorage.getItem('theme') === 'light') {
     document.body.classList.add('light');
+    var tt = document.getElementById('theme-toggle');
+    if(tt) tt.textContent = '☀️';
   }
 })();
 
@@ -645,8 +647,11 @@ document.getElementById('main-scan-inp').addEventListener('keydown', e=>{
 });
 document.getElementById('main-redeem-btn').addEventListener('click', async ()=>{
   if(!mainScanId||!mainScanAktionId) return;
-  const col = mainScanAktionId==='__normal' ? 'normal_gutscheine' : 'aktionen_'+mainScanAktionId;
-  await updateDoc(doc(db, col, mainScanId), {redeemed:true, date:new Date().toLocaleDateString('de-DE')});
+  const isNormal = mainScanAktionId==='__normal';
+  const col = isNormal ? 'normal_gutscheine' : 'aktionen_'+mainScanAktionId;
+  // Normal-Gutscheine speichern das Einlöse-Datum in 'redeemedDate', Aktions-Codes in 'date'
+  const heute = new Date().toLocaleDateString('de-DE');
+  await updateDoc(doc(db, col, mainScanId), isNormal ? {redeemed:true, redeemedDate:heute} : {redeemed:true, date:heute});
   const res = document.getElementById('main-scan-res');
   res.style.display = 'block';
   res.innerHTML = `<div style="padding:18px 16px;background:rgba(108,99,255,.1);border:1.5px solid rgba(108,99,255,.3);border-radius:var(--r);text-align:center">
@@ -1544,6 +1549,13 @@ function dlJPEGsList(list){
   const cfg=voucherCfg(vorlage);
   toast('JPEGs werden erstellt...');
 
+  // Ordner-/Dateiname = Name der Fahrschule (Gruppe), damit klar ist, wohin der Download gehört.
+  // Bei einer einzelnen Gruppe deren Name, sonst Aktionsname als Rückfall. Für Dateisystem unzulässige
+  // Zeichen (\ / : * ? " < > |) werden entfernt.
+  const schoolsInList=[...new Set(list.map(c=>c.school).filter(Boolean))];
+  const ordnerName=(schoolsInList.length===1?schoolsInList[0]:((curAktion&&curAktion.name)||'Gutscheine'))
+    .replace(/[\\/:*?"<>|]/g,'').replace(/\s+/g,' ').trim().replace(/[. ]+$/,'')||'Gutscheine';
+
   function renderCanvas(c){
     return new Promise(resolve=>{
       const canvas=document.createElement('canvas');
@@ -1562,21 +1574,21 @@ function dlJPEGsList(list){
 
   Promise.all(list.map(renderCanvas)).then(results=>{
     if(results.length===1){
-      // Einzelner Gutschein → direkt als JPEG
+      // Einzelner Gutschein → direkt als JPEG (mit Fahrschulname im Dateinamen)
       const a=document.createElement('a');
-      a.download='Gutschein_'+results[0].code+'.jpg';
+      a.download='Gutschein_'+ordnerName+'_'+results[0].code+'.jpg';
       a.href=URL.createObjectURL(results[0].blob);
       a.click();
       toast('JPEG heruntergeladen ✓');
     } else {
-      // Mehrere → ZIP
+      // Mehrere → ZIP: Ordner und Datei heißen wie die Fahrschule
       const zip=new JSZip();
-      const folder=zip.folder('Gutscheine');
+      const folder=zip.folder(ordnerName);
       results.forEach(r=>folder.file('Gutschein_'+r.code+'.jpg',r.blob));
       zip.generateAsync({type:'blob'}).then(blob=>{
         const a=document.createElement('a');
         a.href=URL.createObjectURL(blob);
-        a.download='Gutscheine_Auswahl.zip';
+        a.download=ordnerName+'.zip';
         a.click();
         toast(results.length+' JPEGs als ZIP heruntergeladen ✓');
       });
@@ -1640,7 +1652,10 @@ document.getElementById('ng-create-btn').onclick = async function() {
   if(!wert) { toast('Bitte Wert eingeben'); return; }
   const wertFmt = formatWert(wert);
   const ablauf = new Date(new Date().getFullYear() + 3, 11, 31).toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit',year:'numeric'});
-  const code = genNormalCode();
+  // Eindeutigen Code erzeugen – verhindert, dass ein bestehender Gutschein überschrieben wird
+  const vorhanden = new Set(normalCodes.map(c => c.code));
+  let code, versuche = 0;
+  do { code = genNormalCode(); versuche++; } while(vorhanden.has(code) && versuche < 100);
   const bemerkung = document.getElementById('ng-bemerkung').value.trim();
   await setDoc(doc(db, 'normal_gutscheine', code), {code, fuer, von, wert: wertFmt, ablauf, bemerkung, redeemed: false, created: new Date().toISOString()});
   document.getElementById('ng-fuer').value = '';
