@@ -342,7 +342,7 @@ hr{border:none;border-top:1px solid var(--brd);margin:18px 0}
   <div class="dlg">
     <h3>Download Format</h3>
     <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px">
-      <button class="btn btn-a" id="dl-pdf">📄 Alle als PDF</button>
+      <button class="btn btn-a" id="dl-pdf">📄 Alle als einzel-PDF (ZIP)</button>
       <button class="btn btn-o" id="dl-jpg">🖼 Alle als JPEGs (ZIP)</button>
       <button class="btn btn-o" id="dl-single">☑️ Einzelne auswählen</button>
       <button class="btn btn-o" id="dl-cancel">Abbrechen</button>
@@ -454,6 +454,7 @@ document.getElementById("pin-inp").addEventListener("keydown", loginOnEnter);
 
 <!-- FIREBASE + APP LOGIC -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -1431,7 +1432,7 @@ function updateSelCount(){
     allCb.indeterminate=selectedIds.size>0&&!allCb.checked;
   }
 }
-document.getElementById('dl-pdf').onclick=()=>{showOv(null);printVouchers(codes.filter(c=>c.school===curSchool&&!c.redeemed));toast('Als PDF speichern wählen')};
+document.getElementById('dl-pdf').onclick=()=>{showOv(null);dlPDFs(curSchool)};
 document.getElementById('dl-jpg').onclick=()=>{showOv(null);dlJPEGs(curSchool)};
 document.getElementById('dl-cancel').onclick=()=>showOv(null);
 document.getElementById('dl-single').onclick=()=>{
@@ -1507,14 +1508,14 @@ function startDlSelectMode(){
     dlBar.id='dl-sel-bar';
     dlBar.style.cssText='display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap';
     dlBar.innerHTML=`
-      <button class="btn btn-a" id="dl-sel-pdf" style="flex:1;font-size:13px;padding:10px">📄 Als PDF</button>
+      <button class="btn btn-a" id="dl-sel-pdf" style="flex:1;font-size:13px;padding:10px">📄 Als einzel-PDF</button>
       <button class="btn btn-o" id="dl-sel-jpg" style="flex:1;font-size:13px;padding:10px">🖼 Als JPEGs</button>
       <button class="btn btn-o" id="dl-sel-cancel" style="flex:1;font-size:13px;padding:10px">Abbrechen</button>`;
     document.getElementById('det-list').before(dlBar);
     document.getElementById('dl-sel-pdf').onclick=()=>{
       if(!dlSelectedIds.size){toast('Keine Codes ausgewählt');return;}
       const list=codes.filter(c=>dlSelectedIds.has(c.id));
-      printVouchers(list);
+      dlPDFsList(list);
       stopDlSelectMode();
     };
     document.getElementById('dl-sel-jpg').onclick=()=>{
@@ -1595,6 +1596,78 @@ function dlJPEGsList(list){
     }
   });
 }
+
+// Gutscheine als EINZELNE PDF-Dateien herunterladen (pro Code eine PDF).
+// Bei mehreren Codes werden sie – wie bei den JPEGs – in einem ZIP gebündelt,
+// dessen Ordner nach der Fahrschule/Gruppe benannt ist.
+function dlPDFsList(list){
+  if(!list.length){toast('Keine Codes');return}
+  const jsPDFlib = window.jspdf && window.jspdf.jsPDF;
+  if(!jsPDFlib){toast('PDF-Bibliothek lädt noch – bitte erneut versuchen');return}
+  const vorlage=(curAktion&&curAktion.vorlage)||'fotoriede';
+  const cfg=voucherCfg(vorlage);
+  toast('PDFs werden erstellt...');
+
+  // Ordner-/Dateiname = Name der Fahrschule (Gruppe), wie beim JPEG-Download
+  const schoolsInList=[...new Set(list.map(c=>c.school).filter(Boolean))];
+  const ordnerName=(schoolsInList.length===1?schoolsInList[0]:((curAktion&&curAktion.name)||'Gutscheine'))
+    .replace(/[\\/:*?"<>|]/g,'').replace(/\s+/g,' ').trim().replace(/[. ]+$/,'')||'Gutscheine';
+
+  function renderPdf(c){
+    return new Promise(resolve=>{
+      const canvas=document.createElement('canvas');
+      canvas.width=1772;canvas.height=1181;
+      const ctx=canvas.getContext('2d');
+      const img=new Image();
+      img.onload=()=>{
+        ctx.drawImage(img,0,0,1772,1181);
+        ctx.font='500 46px Arial';ctx.fillStyle='#141414';ctx.textBaseline='middle';ctx.textAlign='left';
+        cfg.draw(ctx,c,codeAblauf(c));
+        const dataUrl=canvas.toDataURL('image/jpeg',0.95);
+        // Gutscheinformat 15×10 cm (Querformat), Bild füllt die ganze Seite
+        const pdf=new jsPDFlib({orientation:'landscape',unit:'mm',format:[150,100]});
+        const w=pdf.internal.pageSize.getWidth();
+        const h=pdf.internal.pageSize.getHeight();
+        pdf.addImage(dataUrl,'JPEG',0,0,w,h);
+        resolve({code:c.code,blob:pdf.output('blob')});
+      };
+      img.onerror=()=>resolve(null);
+      img.src=cfg.bg;
+    });
+  }
+
+  Promise.all(list.map(renderPdf)).then(results=>{
+    results=results.filter(Boolean);
+    if(!results.length){toast('PDFs konnten nicht erstellt werden');return}
+    if(results.length===1){
+      // Einzelner Gutschein → direkt als PDF (mit Fahrschulname im Dateinamen)
+      const a=document.createElement('a');
+      a.download='Gutschein_'+ordnerName+'_'+results[0].code+'.pdf';
+      a.href=URL.createObjectURL(results[0].blob);
+      a.click();
+      toast('PDF heruntergeladen ✓');
+    } else {
+      // Mehrere → einzelne PDFs in einem ZIP (Ordner = Fahrschule)
+      const zip=new JSZip();
+      const folder=zip.folder(ordnerName);
+      results.forEach(r=>folder.file('Gutschein_'+r.code+'.pdf',r.blob));
+      zip.generateAsync({type:'blob'}).then(blob=>{
+        const a=document.createElement('a');
+        a.href=URL.createObjectURL(blob);
+        a.download=ordnerName+'_PDF.zip';
+        a.click();
+        toast(results.length+' PDFs als ZIP heruntergeladen ✓');
+      });
+    }
+  });
+}
+
+function dlPDFs(school){
+  const list=codes.filter(c=>c.school===school&&!c.redeemed);
+  if(!list.length){toast('Keine offenen Codes');return}
+  dlPDFsList(list);
+}
+
 window._toggleSel = function(id){
   if(selectedIds.has(id)) selectedIds.delete(id);
   else selectedIds.add(id);
