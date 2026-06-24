@@ -343,6 +343,7 @@ hr{border:none;border-top:1px solid var(--brd);margin:18px 0}
     <h3>Download Format</h3>
     <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px">
       <button class="btn btn-a" id="dl-pdf">📄 Alle als einzel-PDF (ZIP)</button>
+      <button class="btn btn-o" id="dl-pdf-one">📄 Alle in einer PDF</button>
       <button class="btn btn-o" id="dl-jpg">🖼 Alle als JPEGs (ZIP)</button>
       <button class="btn btn-o" id="dl-single">☑️ Einzelne auswählen</button>
       <button class="btn btn-o" id="dl-cancel">Abbrechen</button>
@@ -1433,6 +1434,7 @@ function updateSelCount(){
   }
 }
 document.getElementById('dl-pdf').onclick=()=>{showOv(null);dlPDFs(curSchool)};
+document.getElementById('dl-pdf-one').onclick=()=>{showOv(null);dlPDFCombined(curSchool)};
 document.getElementById('dl-jpg').onclick=()=>{showOv(null);dlJPEGs(curSchool)};
 document.getElementById('dl-cancel').onclick=()=>showOv(null);
 document.getElementById('dl-single').onclick=()=>{
@@ -1666,6 +1668,58 @@ function dlPDFs(school){
   const list=codes.filter(c=>c.school===school&&!c.redeemed);
   if(!list.length){toast('Keine offenen Codes');return}
   dlPDFsList(list);
+}
+
+// Alle Gutscheine in EINER PDF-Datei (jeder Code = eine Seite, 15×10 cm).
+function dlPDFCombinedList(list){
+  if(!list.length){toast('Keine Codes');return}
+  const jsPDFlib = window.jspdf && window.jspdf.jsPDF;
+  if(!jsPDFlib){toast('PDF-Bibliothek lädt noch – bitte erneut versuchen');return}
+  const vorlage=(curAktion&&curAktion.vorlage)||'fotoriede';
+  const cfg=voucherCfg(vorlage);
+  toast('PDF wird erstellt...');
+
+  const schoolsInList=[...new Set(list.map(c=>c.school).filter(Boolean))];
+  const ordnerName=(schoolsInList.length===1?schoolsInList[0]:((curAktion&&curAktion.name)||'Gutscheine'))
+    .replace(/[\\/:*?"<>|]/g,'').replace(/\s+/g,' ').trim().replace(/[. ]+$/,'')||'Gutscheine';
+
+  function renderImg(c){
+    return new Promise(resolve=>{
+      const canvas=document.createElement('canvas');
+      canvas.width=1772;canvas.height=1181;
+      const ctx=canvas.getContext('2d');
+      const img=new Image();
+      img.onload=()=>{
+        ctx.drawImage(img,0,0,1772,1181);
+        ctx.font='500 46px Arial';ctx.fillStyle='#141414';ctx.textBaseline='middle';ctx.textAlign='left';
+        cfg.draw(ctx,c,codeAblauf(c));
+        resolve(canvas.toDataURL('image/jpeg',0.95));
+      };
+      img.onerror=()=>resolve(null);
+      img.src=cfg.bg;
+    });
+  }
+
+  Promise.all(list.map(renderImg)).then(urls=>{
+    urls=urls.filter(Boolean);
+    if(!urls.length){toast('PDF konnte nicht erstellt werden');return}
+    // Gutscheinformat 15×10 cm (Querformat), jede Seite ein Gutschein
+    const pdf=new jsPDFlib({orientation:'landscape',unit:'mm',format:[150,100]});
+    const w=pdf.internal.pageSize.getWidth();
+    const h=pdf.internal.pageSize.getHeight();
+    urls.forEach((u,i)=>{
+      if(i>0) pdf.addPage([150,100],'landscape');
+      pdf.addImage(u,'JPEG',0,0,w,h);
+    });
+    pdf.save('Gutscheine_'+ordnerName+'.pdf');
+    toast(urls.length+' Gutscheine als PDF ✓');
+  });
+}
+
+function dlPDFCombined(school){
+  const list=codes.filter(c=>c.school===school&&!c.redeemed);
+  if(!list.length){toast('Keine offenen Codes');return}
+  dlPDFCombinedList(list);
 }
 
 window._toggleSel = function(id){
