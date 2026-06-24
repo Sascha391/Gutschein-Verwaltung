@@ -1587,10 +1587,9 @@ function dlJPEGsList(list){
       a.click();
       toast('JPEG heruntergeladen ✓');
     } else {
-      // Mehrere → ZIP: Ordner und Datei heißen wie die Fahrschule
+      // Mehrere → ZIP: Dateien direkt im ZIP (kein Unterordner)
       const zip=new JSZip();
-      const folder=zip.folder(ordnerName);
-      results.forEach(r=>folder.file('Gutschein_'+r.code+'.jpg',r.blob));
+      results.forEach(r=>zip.file('Gutschein_'+r.code+'.jpg',r.blob));
       zip.generateAsync({type:'blob'}).then(blob=>{
         const a=document.createElement('a');
         a.href=URL.createObjectURL(blob);
@@ -1652,10 +1651,9 @@ function dlPDFsList(list){
       a.click();
       toast('PDF heruntergeladen ✓');
     } else {
-      // Mehrere → einzelne PDFs in einem ZIP (Ordner = Fahrschule)
+      // Mehrere → einzelne PDFs direkt im ZIP (kein Unterordner)
       const zip=new JSZip();
-      const folder=zip.folder(ordnerName);
-      results.forEach(r=>folder.file('Gutschein_'+r.code+'.pdf',r.blob));
+      results.forEach(r=>zip.file('Gutschein_'+r.code+'.pdf',r.blob));
       zip.generateAsync({type:'blob'}).then(blob=>{
         const a=document.createElement('a');
         a.href=URL.createObjectURL(blob);
