@@ -199,7 +199,7 @@ hr{border:none;border-top:1px solid var(--brd);margin:18px 0}
     <div class="fg"><label class="fl">Von (Aussteller)</label><input class="fi" id="ng-von" type="text" placeholder="z. B. Foto Riede" autocomplete="off"></div>
     <div class="fg"><label class="fl">Wert</label><input class="fi" id="ng-wert" type="text" placeholder="z. B. 50,00 €" autocomplete="off"></div>
     <div class="fg"><label class="fl">Bemerkung (intern, erscheint nicht auf dem Gutschein)</label><textarea class="fi" id="ng-bemerkung" rows="2" placeholder="z. B. Weihnachtsgeschenk für Kunde X..." style="resize:none;line-height:1.5"></textarea></div>
-    <div class="fg"><label class="fl">📅 Gültig bis</label><select class="fi" id="ng-monate"><option value="6">6 Monate (ab Monatsende)</option><option value="12">12 Monate</option><option value="24">24 Monate</option><option value="36">36 Monate</option><option value="custom">Eigenes Datum …</option></select></div>
+    <div class="fg"><label class="fl">📅 Gültig bis</label><select class="fi" id="ng-monate"><option value="6">6 Monate (bis Monatsende)</option><option value="12">12 Monate (bis Monatsende)</option><option value="24">24 Monate (bis Monatsende)</option><option value="36">36 Monate (bis Monatsende)</option><option value="custom">Eigenes Datum …</option></select></div>
     <div class="fg" id="ng-datum-wrap"><label class="fl">Ablaufdatum</label><input class="fi" id="ng-ablauf-date" type="date"></div>
     <button class="btn btn-a" id="ng-create-btn">＋ Gutschein erstellen</button>
     <hr>
@@ -290,7 +290,7 @@ hr{border:none;border-top:1px solid var(--brd);margin:18px 0}
       <div class="fg"><label class="fl">Gruppe / Name</label><input class="fi" id="cr-school" type="text" placeholder="z. B. Fahrschule Müller" autocomplete="off"></div>
       <div class="fg"><label class="fl">Wert</label><input class="fi" id="cr-wert" type="text" placeholder="z. B. 50,00 €" autocomplete="off"></div>
       <div class="fg"><label class="fl">Anzahl</label><input class="fi" id="cr-count" type="number" value="1" min="1" max="100"></div>
-      <div class="fg"><label class="fl">Gültig bis</label><select class="fi" id="cr-monate"><option value="6">6 Monate (ab Monatsende)</option><option value="12">12 Monate</option><option value="24">24 Monate</option><option value="36">36 Monate</option><option value="custom">Eigenes Datum …</option></select></div>
+      <div class="fg"><label class="fl">Gültig bis</label><select class="fi" id="cr-monate"><option value="6">6 Monate (bis Monatsende)</option><option value="12">12 Monate (bis Monatsende)</option><option value="24">24 Monate (bis Monatsende)</option><option value="36">36 Monate (bis Monatsende)</option><option value="custom">Eigenes Datum …</option></select></div>
       <div class="fg" id="cr-datum-wrap" style="display:none"><label class="fl">Ablaufdatum</label><input class="fi" id="cr-datum" type="date"></div>
       <button class="btn btn-a" id="cr-btn">＋ Codes generieren</button>
       <hr>
