@@ -564,6 +564,9 @@ function ngSyncDatum(){
 function aktionMonate(){ return (curAktion && parseInt(curAktion.gueltigMonate)) || 6; }
 // Ablauf eines einzelnen Codes: gespeichertes Datum, sonst aus Erstelldatum berechnet
 function codeAblauf(c){ return (c && c.ablauf) ? c.ablauf : ablaufStr(aktionMonate(), c && c.created); }
+// Abgelaufen? Ablaufdatum (dd.mm.yyyy) vs. heute – gültig bis einschließlich Ablauftag
+function ablaufDateFromStr(s){ const p=(s||'').split('.'); if(p.length!==3) return null; const d=new Date(+p[2],(+p[1])-1,+p[0]); return isNaN(d.getTime())?null:d; }
+function istAbgelaufenStr(s){ const d=ablaufDateFromStr(s); if(!d) return false; const t=new Date(); t.setHours(0,0,0,0); return d.getTime()<t.getTime(); }
 // Wert formatieren: "5" -> "5,00 €", "5,5" -> "5,50 €", leerer Wert bleibt leer
 function formatWert(v){
   v=(v||'').trim();
@@ -626,12 +629,25 @@ function mainScanRenderResult(found, foundAktionId) {
   } else {
     const pills = [name, wert, aktionName].filter(Boolean);
     res.style.display = 'block';
-    res.innerHTML = `<div style="padding:18px 16px;background:rgba(34,197,94,.08);border:1.5px solid rgba(34,197,94,.5);border-radius:var(--r);text-align:center">
+    const ablStr = foundAktionId==='__normal' ? (found.ablauf||'') : codeAblauf(found);
+    const btn = document.getElementById('main-redeem-btn');
+    if(istAbgelaufenStr(ablStr)){
+      res.innerHTML = `<div style="padding:18px 16px;background:rgba(248,113,113,.1);border:1.5px solid rgba(248,113,113,.55);border-radius:var(--r);text-align:center">
+      <div style="font-size:30px;margin-bottom:6px">🚫</div>
+      <div style="font-size:16px;font-weight:700;color:var(--txt)">Abgelaufen</div>
+      <div style="font-size:13px;color:var(--txt2);margin-top:4px">war gültig bis ${escHtml(ablStr)}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:10px">${pills.map(p=>`<span style="background:rgba(248,113,113,.18);border:1px solid rgba(248,113,113,.45);border-radius:99px;padding:5px 14px;font-size:13px;color:var(--txt);font-weight:500">${escHtml(p)}</span>`).join('')}</div>
+    </div>`;
+      if(btn) btn.textContent = '⚠️ Trotzdem einlösen';
+    } else {
+      res.innerHTML = `<div style="padding:18px 16px;background:rgba(34,197,94,.08);border:1.5px solid rgba(34,197,94,.5);border-radius:var(--r);text-align:center">
       <div style="font-size:30px;margin-bottom:6px">✅</div>
       <div style="font-size:16px;font-weight:700;color:var(--txt)">Gültiger Gutschein</div>
       <div style="font-size:13px;color:var(--txt2);margin-top:3px">Bereit zur Einlösung</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:10px">${pills.map(p=>`<span style="background:rgba(34,197,94,.25);border:1px solid rgba(34,197,94,.5);border-radius:99px;padding:5px 14px;font-size:13px;color:var(--txt);font-weight:500">${escHtml(p)}</span>`).join('')}</div>
     </div>`;
+      if(btn) btn.textContent = '✓ Jetzt einlösen';
+    }
     act.style.display = 'block';
   }
 }
@@ -1295,7 +1311,14 @@ function doScan(){
     act.style.display='none';
   } else {
     const wert=found.wert?`<span style="background:rgba(34,197,94,.25);border:1px solid rgba(34,197,94,.5);border-radius:99px;padding:4px 12px;font-size:12px;color:var(--txt);font-weight:500">${escHtml(found.wert)}</span>`:'';
-    res.innerHTML=`<div style="padding:16px;background:rgba(34,197,94,.08);border:1.5px solid rgba(34,197,94,.5);border-radius:var(--r);text-align:center"><div style="font-size:26px;margin-bottom:4px">✅</div><div style="font-size:15px;font-weight:700;color:var(--txt)">Gültiger Gutschein</div><div style="font-size:12px;color:var(--txt2);margin-top:3px;margin-bottom:${found.wert?'8px':'0'}">${escHtml(found.school)}</div>${wert}</div>`;
+    const abl=codeAblauf(found);
+    if(istAbgelaufenStr(abl)){
+      res.innerHTML=`<div style="padding:16px;background:rgba(248,113,113,.1);border:1.5px solid rgba(248,113,113,.55);border-radius:var(--r);text-align:center"><div style="font-size:26px;margin-bottom:4px">🚫</div><div style="font-size:15px;font-weight:700;color:var(--txt)">Abgelaufen</div><div style="font-size:12px;color:var(--txt2);margin-top:3px;margin-bottom:${found.wert?'8px':'0'}">${escHtml(found.school)} · war gültig bis ${escHtml(abl)}</div>${wert}</div>`;
+      document.getElementById('sc-redeem').textContent='⚠️ Trotzdem einlösen';
+    } else {
+      res.innerHTML=`<div style="padding:16px;background:rgba(34,197,94,.08);border:1.5px solid rgba(34,197,94,.5);border-radius:var(--r);text-align:center"><div style="font-size:26px;margin-bottom:4px">✅</div><div style="font-size:15px;font-weight:700;color:var(--txt)">Gültiger Gutschein</div><div style="font-size:12px;color:var(--txt2);margin-top:3px;margin-bottom:${found.wert?'8px':'0'}">${escHtml(found.school)}</div>${wert}</div>`;
+      document.getElementById('sc-redeem').textContent='✓ Jetzt einlösen';
+    }
     act.style.display='block';
   }
 }
