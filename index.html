@@ -199,10 +199,8 @@ hr{border:none;border-top:1px solid var(--brd);margin:18px 0}
     <div class="fg"><label class="fl">Von (Aussteller)</label><input class="fi" id="ng-von" type="text" placeholder="z. B. Foto Riede" autocomplete="off"></div>
     <div class="fg"><label class="fl">Wert</label><input class="fi" id="ng-wert" type="text" placeholder="z. B. 50,00 €" autocomplete="off"></div>
     <div class="fg"><label class="fl">Bemerkung (intern, erscheint nicht auf dem Gutschein)</label><textarea class="fi" id="ng-bemerkung" rows="2" placeholder="z. B. Weihnachtsgeschenk für Kunde X..." style="resize:none;line-height:1.5"></textarea></div>
-    <div style="background:var(--surf);border:1px solid var(--brd);border-radius:var(--rs);padding:12px 14px;margin-bottom:13px;font-size:13px;color:var(--txt2)">
-      📅 Gültig bis: <strong id="ng-ablauf-preview" style="color:var(--txt)">–</strong><br>
-      <span style="font-size:12px">(3 Jahre ab Ende des aktuellen Jahres)</span>
-    </div>
+    <div class="fg"><label class="fl">📅 Gültig bis</label><select class="fi" id="ng-monate"><option value="6">6 Monate (ab Monatsende)</option><option value="12">12 Monate</option><option value="24">24 Monate</option><option value="36">36 Monate</option><option value="custom">Eigenes Datum …</option></select></div>
+    <div class="fg" id="ng-datum-wrap"><label class="fl">Ablaufdatum</label><input class="fi" id="ng-ablauf-date" type="date"></div>
     <button class="btn btn-a" id="ng-create-btn">＋ Gutschein erstellen</button>
     <hr>
     <div class="lbl">Vorhandene Gutscheine</div>
@@ -292,6 +290,8 @@ hr{border:none;border-top:1px solid var(--brd);margin:18px 0}
       <div class="fg"><label class="fl">Gruppe / Name</label><input class="fi" id="cr-school" type="text" placeholder="z. B. Fahrschule Müller" autocomplete="off"></div>
       <div class="fg"><label class="fl">Wert</label><input class="fi" id="cr-wert" type="text" placeholder="z. B. 50,00 €" autocomplete="off"></div>
       <div class="fg"><label class="fl">Anzahl</label><input class="fi" id="cr-count" type="number" value="1" min="1" max="100"></div>
+      <div class="fg"><label class="fl">Gültig bis</label><select class="fi" id="cr-monate"><option value="6">6 Monate (ab Monatsende)</option><option value="12">12 Monate</option><option value="24">24 Monate</option><option value="36">36 Monate</option><option value="custom">Eigenes Datum …</option></select></div>
+      <div class="fg" id="cr-datum-wrap" style="display:none"><label class="fl">Ablaufdatum</label><input class="fi" id="cr-datum" type="date"></div>
       <button class="btn btn-a" id="cr-btn">＋ Codes generieren</button>
       <hr>
       <div class="lbl">Vorhandene Gruppen</div>
@@ -538,6 +538,28 @@ function ablaufStr(months, from){
   const abl = new Date(d.getFullYear() + Math.floor(m/12), (m%12) + 1, 0);
   return abl.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'});
 }
+// Datum-Umwandlungen zwischen ISO (yyyy-mm-dd, für <input type="date">) und deutschem Format (dd.mm.yyyy)
+function isoToDe(iso){ if(!iso) return ''; const p=iso.split('-'); return p.length===3 ? p[2]+'.'+p[1]+'.'+p[0] : ''; }
+function deToIso(de){ if(!de) return ''; const p=de.split('.'); return p.length===3 ? p[2]+'-'+p[1].padStart(2,'0')+'-'+p[0].padStart(2,'0') : ''; }
+function dateToIso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+// Aktions-Erstellung: Datumsfeld ein-/ausblenden je nach Auswahl (Zeitraum vs. eigenes Datum)
+function crSyncDatum(){
+  const sel=document.getElementById('cr-monate').value;
+  const custom=sel==='custom';
+  document.getElementById('cr-datum-wrap').style.display=custom?'':'none';
+  if(!custom) document.getElementById('cr-datum').value=deToIso(ablaufStr(parseInt(sel)));
+}
+// Aus einer Zeitraum-Auswahl (6/12/24/36 oder "custom"+Datumsfeld) das Ablaufdatum (dd.mm.yyyy) ermitteln
+function ablaufAusAuswahl(selVal, dateInputVal){
+  return selVal==='custom' ? isoToDe(dateInputVal) : ablaufStr(parseInt(selVal));
+}
+// Normal-Gutschein-Erstellung: Datumsfeld ein-/ausblenden je nach Auswahl
+function ngSyncDatum(){
+  const sel=document.getElementById('ng-monate').value;
+  const custom=sel==='custom';
+  document.getElementById('ng-datum-wrap').style.display=custom?'':'none';
+  if(!custom) document.getElementById('ng-ablauf-date').value=deToIso(ablaufStr(parseInt(sel)));
+}
 // Gültigkeitsmonate der aktuellen Aktion (default 6)
 function aktionMonate(){ return (curAktion && parseInt(curAktion.gueltigMonate)) || 6; }
 // Ablauf eines einzelnen Codes: gespeichertes Datum, sonst aus Erstelldatum berechnet
@@ -681,7 +703,9 @@ window.openNormalGutscheine = function() {
   document.getElementById('normal-screen').classList.add('show');
   // Set expiry preview
   const ablauf = new Date(new Date().getFullYear() + 3, 11, 31);
-  document.getElementById('ng-ablauf-preview').textContent = ablauf.toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit',year:'numeric'});
+  document.getElementById('ng-monate').value = 'custom';
+  document.getElementById('ng-ablauf-date').value = dateToIso(ablauf);
+  ngSyncDatum();
   // Load existing normal vouchers
   if(normalUnsub) { normalUnsub(); normalUnsub = null; }
   const { collection: col, onSnapshot: ons, query: qry, orderBy: ord } = window._fb;
@@ -1155,10 +1179,15 @@ function showTab(name, keepCreateFields){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
   const pg=document.getElementById('p-'+name);if(pg)pg.classList.add('on');
   const tb=document.querySelector('.tab[data-tab="'+name+'"]');if(tb)tb.classList.add('on');
-  if(name==='cr'&&!keepCreateFields){
-    document.getElementById('cr-school').value='';
-    document.getElementById('cr-wert').value='';
-    document.getElementById('cr-count').value='1';
+  if(name==='cr'){
+    if(!keepCreateFields){
+      document.getElementById('cr-school').value='';
+      document.getElementById('cr-wert').value='';
+      document.getElementById('cr-count').value='1';
+    }
+    // Zeitraum-Auswahl mit Standard-Gültigkeitsdauer der Aktion vorbelegen
+    document.getElementById('cr-monate').value=String(aktionMonate());
+    crSyncDatum();
   }
   if(name!=='det'){curSchool='';if(name!=='ov'&&name!=='cr'&&name!=='sc'&&name!=='li')document.getElementById('back-btn').style.display='none';else document.getElementById('back-btn').style.display='block';document.getElementById('hdr-title').textContent=curAktion?curAktion.name:'Gutscheine'}
 }
@@ -1229,15 +1258,19 @@ function renderExist(){
   el.innerHTML='<div class="clist">'+schools.map((s,i)=>`<div class="ccard" data-act="prefill" data-idx="${i}" style="cursor:pointer"><div style="flex:1"><div style="font-size:14px;font-weight:500">${escHtml(s)}</div><div class="cmeta">${codes.filter(c=>c.school===s&&!c.redeemed).length} offene Codes</div></div><span style="font-size:12px;color:var(--txt3)">antippen →</span></div>`).join('')+'</div>';
 }
 
+document.getElementById('cr-monate').addEventListener('change',crSyncDatum);
 document.getElementById('cr-btn').onclick=async()=>{
   const school=document.getElementById('cr-school').value.trim();
   let wert=formatWert(document.getElementById('cr-wert').value);
   const count=parseInt(document.getElementById('cr-count').value)||1;
   if(!school){toast('Bitte Gruppe eingeben');return}
+  const mSel=document.getElementById('cr-monate').value;
+  const dVal=document.getElementById('cr-datum').value;
+  if(mSel==='custom'&&!dVal){toast('Bitte Ablaufdatum wählen');return}
+  const ablauf=ablaufAusAuswahl(mSel,dVal); // Zeitraum oder eigenes Datum, beim Erstellen fixiert
   const btn=document.getElementById('cr-btn');btn.textContent='Speichert...';btn.disabled=true;
   const ex=new Set(codes.map(c=>c.code));
   const batch=writeBatch(db);
-  const ablauf=ablaufStr(aktionMonate()); // Ablaufdatum beim Erstellen fixieren
   for(let i=0;i<count;i++){let code,t=0;do{code=genCode(school);t++}while(ex.has(code)&&t<100);ex.add(code);batch.set(doc(collection(db,'aktionen_'+curAktion.id)),{code,school,wert,redeemed:false,date:null,ablauf,created:new Date().toISOString()})}
   // Save group name to persist even when all codes deleted
   await setDoc(doc(db,'aktionen_'+curAktion.id+'_groups',school.replace(/[^a-z0-9]/gi,'_')),{name:school,created:new Date().toISOString()},{merge:true});
@@ -1779,7 +1812,10 @@ document.getElementById('ng-create-btn').onclick = async function() {
   const wert  = document.getElementById('ng-wert').value.trim();
   if(!wert) { toast('Bitte Wert eingeben'); return; }
   const wertFmt = formatWert(wert);
-  const ablauf = new Date(new Date().getFullYear() + 3, 11, 31).toLocaleDateString('de-DE', {day:'2-digit',month:'2-digit',year:'numeric'});
+  const mSel = document.getElementById('ng-monate').value;
+  const dVal = document.getElementById('ng-ablauf-date').value;
+  if(mSel==='custom'&&!dVal){ toast('Bitte Ablaufdatum wählen'); return; }
+  const ablauf = ablaufAusAuswahl(mSel, dVal); // Zeitraum oder eigenes Datum
   // Eindeutigen Code erzeugen – verhindert, dass ein bestehender Gutschein überschrieben wird
   const vorhanden = new Set(normalCodes.map(c => c.code));
   let code, versuche = 0;
@@ -1813,8 +1849,10 @@ window._editNormal = function(id) {
     const von  = document.getElementById('en-von').value.trim();
     const wert = document.getElementById('en-wert').value.trim();
     const bem  = document.getElementById('en-bem').value.trim();
+    const ab   = document.getElementById('en-abl').value;
     const wertFmt = formatWert(wert);
-    await updateDoc(doc(db, 'normal_gutscheine', id), {fuer, von, wert: wertFmt, bemerkung: bem});
+    const ablauf = ab ? isoToDe(ab) : (c.ablauf||'');
+    await updateDoc(doc(db, 'normal_gutscheine', id), {fuer, von, wert: wertFmt, bemerkung: bem, ablauf});
     ok.textContent = 'Löschen'; ok.className = 'btn btn-d';
     toast('Gespeichert ✓');
   };
@@ -1823,7 +1861,8 @@ window._editNormal = function(id) {
     <div class="fg" style="margin-bottom:10px"><label class="fl">Für</label><input class="fi" id="en-fuer" type="text" value="${escHtml(c.fuer||'')}"></div>
     <div class="fg" style="margin-bottom:10px"><label class="fl">Von</label><input class="fi" id="en-von" type="text" value="${escHtml(c.von||'')}"></div>
     <div class="fg" style="margin-bottom:10px"><label class="fl">Wert</label><input class="fi" id="en-wert" type="text" value="${escHtml(c.wert||'')}"></div>
-    <div class="fg"><label class="fl">Bemerkung</label><textarea class="fi" id="en-bem" rows="2" style="resize:none">${escHtml(c.bemerkung||'')}</textarea></div>`;
+    <div class="fg" style="margin-bottom:10px"><label class="fl">Bemerkung</label><textarea class="fi" id="en-bem" rows="2" style="resize:none">${escHtml(c.bemerkung||'')}</textarea></div>
+    <div class="fg"><label class="fl">Gültig bis</label><input class="fi" id="en-abl" type="date" value="${deToIso(c.ablauf||'')}"></div>`;
   document.getElementById('ov-cfm').classList.add('show');
 };
 
@@ -1878,9 +1917,9 @@ document.addEventListener('click',async e=>{
   if(a==='edit-c'){
     const c=codes.find(x=>x.id===id);if(!c)return;
     const ok=document.getElementById('cfm-yes');ok.textContent='Speichern';ok.className='btn btn-a';
-    pendingFn=async()=>{const s=document.getElementById('ec-s').value.trim();const w=document.getElementById('ec-w').value.trim();if(!s){toast('Bitte Name eingeben');return}await updateDoc(doc(db,'aktionen_'+curAktion.id,id),{school:s,wert:w});toast('Gespeichert ✓');showOv(null);};
+    pendingFn=async()=>{const s=document.getElementById('ec-s').value.trim();const w=document.getElementById('ec-w').value.trim();if(!s){toast('Bitte Name eingeben');return}const ab=document.getElementById('ec-abl').value;const ablauf=ab?isoToDe(ab):codeAblauf(c);await updateDoc(doc(db,'aktionen_'+curAktion.id,id),{school:s,wert:w,ablauf});toast('Gespeichert ✓');showOv(null);};
     document.getElementById('cfm-t').textContent='Gutschein bearbeiten';
-    document.getElementById('cfm-b').innerHTML=`<div class="fg" style="margin-bottom:10px"><label class="fl">Name</label><input class="fi" id="ec-s" type="text" value="${escHtml(c.school)}"></div><div class="fg"><label class="fl">Wert</label><input class="fi" id="ec-w" type="text" value="${escHtml(c.wert||'')}" placeholder="z. B. 50,00 €"></div>`;
+    document.getElementById('cfm-b').innerHTML=`<div class="fg" style="margin-bottom:10px"><label class="fl">Name</label><input class="fi" id="ec-s" type="text" value="${escHtml(c.school)}"></div><div class="fg" style="margin-bottom:10px"><label class="fl">Wert</label><input class="fi" id="ec-w" type="text" value="${escHtml(c.wert||'')}" placeholder="z. B. 50,00 €"></div><div class="fg"><label class="fl">Gültig bis</label><input class="fi" id="ec-abl" type="date" value="${deToIso(codeAblauf(c))}"></div>`;
     showOv('ov-cfm');
   }
   if(a==='del-c')cfm('Code löschen?',`<p>Code "<strong>${el.dataset.code}</strong>" wird gelöscht.</p>`,async()=>{
@@ -1900,6 +1939,7 @@ document.getElementById('li-search').oninput=renderLi;
 document.querySelectorAll('.ov').forEach(o=>o.onclick=e=>{if(e.target===o)showOv(null)});
 
 // Normal Gutschein search + filter
+document.getElementById('ng-monate').addEventListener('change', ngSyncDatum);
 document.getElementById('ng-search').addEventListener('input', renderNormalList);
 document.querySelectorAll('[data-ngf]').forEach(b => b.onclick = () => {
   ngFilter = b.dataset.ngf;
