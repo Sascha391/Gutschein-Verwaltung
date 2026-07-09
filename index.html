@@ -73,7 +73,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--txt);min-
 .ctxt{font-family:'DM Mono',monospace;font-size:15px;font-weight:500;letter-spacing:.5px}
 .cmeta{font-size:12px;color:var(--txt2);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .badge{font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;white-space:nowrap}
-.bo{background:rgba(108,99,255,.15);color:var(--acc2)}.bd{background:var(--grn-dim);color:var(--grn)}
+.bo{background:rgba(108,99,255,.15);color:var(--acc2)}.bd{background:var(--grn-dim);color:var(--grn)}.bx{background:rgba(248,113,113,.15);color:var(--red)}
 .sbox{background:var(--surf);border:1px solid var(--brd);border-radius:var(--r);padding:18px;margin-bottom:18px}
 .srow{display:flex;gap:10px}
 .sres{margin-top:14px;padding:13px;border-radius:var(--rs);display:none}
@@ -743,11 +743,14 @@ function renderNormalList() {
     return matchFilter && matchSearch;
   });
   if(!list.length) { el.innerHTML = '<div style="color:var(--txt3);font-size:13px;padding:8px 0">'+(normalCodes.length?'Keine Ergebnisse':'Noch keine Gutscheine')+'</div>'; return; }
-  el.innerHTML = '<div class="clist">' + list.map(c => `
+  el.innerHTML = '<div class="clist">' + list.map(c => {
+    const exp = !c.redeemed && istAbgelaufenStr(c.ablauf);
+    return `
     <div class="ccard${c.redeemed?' done':''}">
       <div style="flex:1;min-width:0">
         <div class="ctxt">${fmtCode(c.code)}</div>
         <div class="cmeta">${c.fuer?'Für: '+escHtml(c.fuer)+' · ':''}${escHtml(c.wert||'')} · bis ${escHtml(c.ablauf||'')}</div>
+        ${exp?`<div style="font-size:11px;color:var(--red);font-weight:600;margin-top:3px">🚫 Abgelaufen · war gültig bis ${escHtml(c.ablauf||'')}</div>`:''}
         ${c.redeemed&&c.redeemedDate?`<div style="font-size:11px;color:var(--grn);margin-top:3px">✓ Eingelöst am ${escHtml(c.redeemedDate)}</div>`:''}
         ${c.bemerkung?`<div style="font-size:11px;color:var(--acc2);margin-top:3px">📝 ${escHtml(c.bemerkung)}</div>`:''}
       </div>
@@ -758,7 +761,8 @@ function renderNormalList() {
         <button class="bsm b-prt" onclick="window._dlNormal('${c.id}')">⬇</button>
         <button class="bsm b-del" onclick="window._delNormal('${c.id}','${c.code}')">🗑</button>
       </div>
-    </div>`).join('') + '</div>';
+    </div>`;
+  }).join('') + '</div>';
 }
 
 
@@ -1247,6 +1251,7 @@ window.renderDet = function renderDet(){
   if(!list.length){el.innerHTML='<div class="empty"><div class="ei">🎟</div>Keine Codes</div>';return}
   const anySelMode = selectMode || dlSelectMode;
   el.innerHTML='<div class="clist">'+list.map(c=>{
+    const exp = !c.redeemed && istAbgelaufenStr(codeAblauf(c));
     const isDelSel = selectMode && selectedIds.has(c.id);
     const isDlSel = dlSelectMode && dlSelectedIds.has(c.id);
     const isSelected = isDelSel || isDlSel;
@@ -1256,8 +1261,8 @@ window.renderDet = function renderDet(){
       : dlSelectMode
       ? `<input type="checkbox" ${isDlSel?'checked':''} onclick="window._toggleDlSel('${c.id}')" style="width:20px;height:20px;cursor:pointer;accent-color:var(--acc)">`
       : '';
-    const btns = anySelMode ? '' : `<span class="badge ${c.redeemed?'bd':'bo'}">${c.redeemed?'✓':'Offen'}</span><div class="br"><button class="bsm ${c.redeemed?'b-undo':'b-chk'}" data-act="tog" data-id="${c.id}" data-r="${c.redeemed}">${c.redeemed?'↩':'✓'}</button><button class="bsm b-edt" data-act="edit-c" data-id="${c.id}">✏️</button><button class="bsm b-prt" data-act="view1" data-id="${c.id}">👁</button><button class="bsm b-del" data-act="del-c" data-id="${c.id}" data-code="${c.code}">🗑</button></div>`;
-    return `<div class="ccard${c.redeemed?' done':''}" style="${selStyle}"><div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">${cb}<div style="min-width:0"><div class="ctxt">${fmtCode(c.code)}</div><div class="cmeta">${c.wert?(c.wert.includes('€')?escHtml(c.wert):escHtml(c.wert+' €'))+' · ':''}${c.redeemed?'Eingelöst · '+escHtml(c.date):'Offen'}</div></div></div>${btns}</div>`;
+    const btns = anySelMode ? '' : `<span class="badge ${c.redeemed?'bd':(exp?'bx':'bo')}">${c.redeemed?'✓':(exp?'Abgelaufen':'Offen')}</span><div class="br"><button class="bsm ${c.redeemed?'b-undo':'b-chk'}" data-act="tog" data-id="${c.id}" data-r="${c.redeemed}">${c.redeemed?'↩':'✓'}</button><button class="bsm b-edt" data-act="edit-c" data-id="${c.id}">✏️</button><button class="bsm b-prt" data-act="view1" data-id="${c.id}">👁</button><button class="bsm b-del" data-act="del-c" data-id="${c.id}" data-code="${c.code}">🗑</button></div>`;
+    return `<div class="ccard${c.redeemed?' done':''}" style="${selStyle}"><div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">${cb}<div style="min-width:0"><div class="ctxt">${fmtCode(c.code)}</div><div class="cmeta">${c.wert?(c.wert.includes('€')?escHtml(c.wert):escHtml(c.wert+' €'))+' · ':''}${c.redeemed?'Eingelöst · '+escHtml(c.date):(exp?'🚫 Abgelaufen · war gültig bis '+escHtml(codeAblauf(c)):'Offen')}</div></div></div>${btns}</div>`;
   }).join('')+'</div>';
 }
 function renderLi(){
@@ -1265,7 +1270,10 @@ function renderLi(){
   const list=codes.filter(c=>(listF==='all'||(listF==='open'&&!c.redeemed)||(listF==='done'&&c.redeemed))&&(!q||c.code.toLowerCase().includes(q)||c.school.toLowerCase().includes(q)));
   const el=document.getElementById('li-list');
   if(!list.length){el.innerHTML='<div class="empty"><div class="ei">🔍</div>'+(codes.length?'Keine Ergebnisse':'Noch keine Codes')+'</div>';return}
-  el.innerHTML='<div class="clist">'+list.map(c=>`<div class="ccard${c.redeemed?' done':''}"><div style="flex:1;min-width:0"><div class="ctxt">${fmtCode(c.code)}</div><div class="cmeta">${escHtml(c.school)}${c.wert?' · '+(c.wert.includes('€')?escHtml(c.wert):escHtml(c.wert+' €')):''}${c.date?' · '+escHtml(c.date):''}</div></div><div class="br"><button class="bsm ${c.redeemed?'b-undo':'b-chk'}" data-act="tog" data-id="${c.id}" data-r="${c.redeemed}">${c.redeemed?'↩':'✓'}</button><button class="bsm b-prt" data-act="view1" data-id="${c.id}">👁</button><button class="bsm b-del" data-act="del-c" data-id="${c.id}" data-code="${c.code}">🗑</button></div></div>`).join('')+'</div>';
+  el.innerHTML='<div class="clist">'+list.map(c=>{
+    const exp = !c.redeemed && istAbgelaufenStr(codeAblauf(c));
+    return `<div class="ccard${c.redeemed?' done':''}"><div style="flex:1;min-width:0"><div class="ctxt">${fmtCode(c.code)}</div><div class="cmeta">${escHtml(c.school)}${c.wert?' · '+(c.wert.includes('€')?escHtml(c.wert):escHtml(c.wert+' €')):''}${c.date?' · '+escHtml(c.date):''}${exp?' · <span style="color:var(--red);font-weight:600">🚫 Abgelaufen</span>':''}</div></div><div class="br"><button class="bsm ${c.redeemed?'b-undo':'b-chk'}" data-act="tog" data-id="${c.id}" data-r="${c.redeemed}">${c.redeemed?'↩':'✓'}</button><button class="bsm b-prt" data-act="view1" data-id="${c.id}">👁</button><button class="bsm b-del" data-act="del-c" data-id="${c.id}" data-code="${c.code}">🗑</button></div></div>`;
+  }).join('')+'</div>';
 }
 function renderExist(){
   const schools=[...new Set(codes.map(c=>c.school))];
